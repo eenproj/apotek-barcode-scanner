@@ -10,7 +10,29 @@
 *{box-sizing:border-box}body{margin:0;background:#f1f5f9;color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
 main{max-width:650px;margin:0 auto;padding:16px}.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:0 12px 40px #0f172a12}
 header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}h1{font-size:20px;margin:0}p{color:var(--muted);margin:6px 0 12px}.stage{position:relative;overflow:hidden;background:#020617;border-radius:16px;min-height:240px}#reader{width:100%;min-height:240px}#reader video{width:100%;object-fit:cover!important;border-radius:16px}.frame{pointer-events:none;position:absolute;z-index:2;inset:22% 9%;border:2px solid #34d399;border-radius:14px;box-shadow:0 0 0 999px #0002}.laser{position:absolute;left:3%;right:3%;top:50%;height:2px;background:#fb4b4b;box-shadow:0 0 9px 2px #f84646a6;animation:laser 1.8s ease-in-out infinite alternate}@keyframes laser{from{transform:translateY(-55px)}to{transform:translateY(55px)}}
-.status{padding:12px 0;min-height:44px;color:#334155}.row{display:flex;gap:8px;flex-wrap:wrap}.row input{flex:1;min-width:180px}.field,button{font:inherit;border-radius:10px;padding:11px 12px;border:1px solid #cbd5e1}.field{width:100%}button{cursor:pointer;background:#fff;color:var(--ink);font-weight:650}button.primary{background:#047857;border-color:#047857;color:white}button:disabled{opacity:.55;cursor:not-allowed}.hint{font-size:12px;color:var(--muted);margin-top:12px}.code{font:700 17px ui-monospace,SFMono-Regular,Consolas,monospace;word-break:break-all}.pill{border-radius:999px;padding:6px 10px;background:#dcfce7;color:#166534;display:inline-block;font-weight:700}.error{color:var(--red)}@media(max-width:480px){main{padding:10px}.card{padding:13px}h1{font-size:18px}}
+.status{padding:12px 0;min-height:44px;color:#334155}.row{display:flex;gap:8px;flex-wrap:wrap}.row input{flex:1;min-width:180px}.field,button{font:inherit;border-radius:10px;padding:11px 12px;border:1px solid #cbd5e1}.field{width:100%}button{cursor:pointer;background:#fff;color:var(--ink);font-weight:650}button.primary{background:#047857;border-color:#047857;color:white}button:disabled{opacity:.55;cursor:not-allowed}.hint{font-size:12px;color:var(--muted);margin-top:12px}.code{font:700 17px ui-monospace,SFMono-Regular,Consolas,monospace;word-break:break-all}.pill{border-radius:999px;padding:6px 10px;background:#dcfce7;color:#166534;display:inline-block;font-weight:700}.error{color:var(--red)}
+.product-entry-card{margin-top:16px;padding:16px;border:1px solid #cbd5e1;border-radius:16px;background:#f8fafc}
+.product-entry-card[hidden]{display:none!important}
+.product-entry-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px}
+.product-entry-heading h2{font-size:17px;margin:0;color:#0f172a}
+.product-entry-heading p{font-size:12px;margin:4px 0 0;color:#64748b}
+.product-entry-count{flex:0 0 auto;padding:5px 9px;border-radius:999px;background:#dcfce7;color:#166534;font-size:11px;font-weight:700}
+.product-entry-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.product-entry-grid label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:650;color:#334155;min-width:0}
+.product-entry-grid label.wide{grid-column:1/-1}
+.product-entry-grid input,.product-entry-grid select{width:100%;min-width:0;padding:10px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#0f172a;font:inherit;font-weight:400}
+.product-entry-inline{display:flex;gap:6px}
+.product-entry-inline input{flex:1}
+.product-entry-inline button,.product-entry-actions button{padding:10px 12px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#0f172a;font-weight:650}
+.product-entry-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.product-entry-actions button.primary{background:#047857;border-color:#047857;color:#fff}
+.product-entry-actions button:disabled{opacity:.55;cursor:wait}
+.product-save-status{margin-top:10px;min-height:20px;font-size:12px;color:#475569}
+.product-save-status.success{color:#047857;font-weight:700}
+.product-save-status.error{color:#b91c1c}
+@media(max-width:520px){.product-entry-card{padding:12px}.product-entry-grid{grid-template-columns:1fr}.product-entry-grid label.wide{grid-column:auto}.product-entry-actions button{flex:1}.product-entry-inline{flex-wrap:wrap}}
+
+@media(max-width:480px){main{padding:10px}.card{padding:13px}h1{font-size:18px}}
 </style>
 </head>
 <body>
@@ -20,6 +42,31 @@ header{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
 <div id="status" class="status" role="status" aria-live="polite">Menyiapkan scanner…</div>
 <div class="row"><input id="manual" class="field" autocomplete="off" inputmode="text" placeholder="Atau masukkan barcode manual"><button id="sendManual" class="primary" type="button">Kirim barcode</button></div>
 <div class="row" style="margin-top:9px"><button id="retry" type="button">↻ Coba kamera lagi</button><button id="flip" type="button">Ganti kamera</button></div>
+
+<section id="productEntryCard" class="product-entry-card" hidden>
+ <div class="product-entry-heading"><div><h2>Form Tambah Produk</h2><p>Lengkapi data produk. Setelah disimpan, formulir siap untuk produk berikutnya tanpa menutup kamera.</p></div><span class="product-entry-count" id="productSavedCount">0 tersimpan</span></div>
+ <form id="productEntryForm" novalidate>
+  <div class="product-entry-grid">
+   <label>Kode Produk<input id="productCode" autocomplete="off" placeholder="Otomatis oleh aplikasi"></label>
+   <label>Barcode<div class="product-entry-inline"><input id="productBarcode" autocomplete="off" required placeholder="Hasil scan otomatis"><button id="rescanBarcode" type="button">Scan ulang</button></div></label>
+   <label class="wide">Nama Produk<input id="productName" autocomplete="off" required placeholder="Masukkan nama produk"></label>
+   <label>Kategori<select id="productCategory" required></select></label>
+   <label>Satuan<select id="productUnit" required></select></label>
+   <label>Harga Beli<input id="productBuyPrice" type="number" min="0" step="any" value="0" required></label>
+   <label>Harga Jual<input id="productSellPrice" type="number" min="0" step="any" value="0" required></label>
+   <label>Jenis Obat<select id="productMedicineType"><option value="Bebas">Bebas</option><option value="Keras">Keras</option></select></label>
+   <label>Sifat Harga<select id="productPriceType"><option value="FLEKSIBEL">FLEKSIBEL</option><option value="KHUSUS">KHUSUS</option></select></label>
+   <label>Stok Minimal<input id="productMinStock" type="number" min="0" step="1" value="0"></label>
+   <label>Rak Penyimpanan<select id="productShelf"></select></label>
+  </div>
+  <div class="product-entry-actions">
+   <button type="submit" class="primary" id="saveProductFromScanner">Simpan Produk</button>
+   <button type="button" id="clearProductForm">Kosongkan Form</button>
+  </div>
+  <div id="productSaveStatus" class="product-save-status" role="status" aria-live="polite">Siap menerima produk baru.</div>
+ </form>
+</section>
+
 <div class="hint">Hasil barcode dikirim hanya ke aplikasi Apotek yang membuka scanner, baik melalui popup (Kasir) maupun iframe (Tambah Produk). Pastikan URL scanner berasal dari GitHub Pages resmi milik Anda.</div>
 </section></main>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -49,6 +96,10 @@ function sendCode(raw){
  if(!parentReady){setStatus('Belum terhubung dengan aplikasi utama. Tutup scanner lalu buka kembali dari tombol Scan Kamera.',true);return}
  post('APOTEK_SCANNER_RESULT',{barcode:code});
  document.getElementById('manual').value=code;
+ if(mode==='product'){
+  const productBarcode=document.getElementById('productBarcode');
+  if(productBarcode){productBarcode.value=code;setProductSaveStatus('Barcode berhasil dipindai. Lengkapi data produk lalu simpan.');}
+ }
  setStatus('✓ Barcode terkirim: '+code);
  try{const C=window.AudioContext||window.webkitAudioContext;if(C){const c=new C(),o=c.createOscillator(),g=c.createGain();o.frequency.value=1450;g.gain.value=.08;o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.1);o.onended=()=>c.close()}}catch(e){}
 }
@@ -79,6 +130,71 @@ async function startCamera(){
   setStatus(tip+' Detail: '+n+' '+m,true);
  }
 }
+
+let productSavedCount=0;
+function fillSelect(id,items,placeholder){
+ const el=document.getElementById(id);if(!el)return;
+ el.innerHTML='';
+ const first=document.createElement('option');first.value='';first.textContent=placeholder;el.appendChild(first);
+ (Array.isArray(items)?items:[]).forEach(item=>{
+  const opt=document.createElement('option');opt.value=String(item.id??'');opt.textContent=String(item.name??'');el.appendChild(opt);
+ });
+}
+function applyProductOptions(options){
+ const o=options||{};
+ fillSelect('productCategory',o.categories,'Pilih kategori');
+ fillSelect('productUnit',o.units,'Pilih satuan');
+ fillSelect('productShelf',o.shelves,'Tanpa rak');
+ const code=document.getElementById('productCode');
+ if(code)code.value=String(o.nextProductCode||'');
+}
+function productFormPayload(){
+ return {
+  ID:'',
+  KodeProduk:document.getElementById('productCode').value.trim(),
+  Barcode:document.getElementById('productBarcode').value.trim(),
+  NamaProduk:document.getElementById('productName').value.trim(),
+  KategoriID:document.getElementById('productCategory').value,
+  SatuanID:document.getElementById('productUnit').value,
+  HargaBeli:document.getElementById('productBuyPrice').value,
+  HargaJual:document.getElementById('productSellPrice').value,
+  SifatHarga:document.getElementById('productPriceType').value,
+  JenisObat:document.getElementById('productMedicineType').value,
+  StokMinimal:document.getElementById('productMinStock').value,
+  RakID:document.getElementById('productShelf').value,
+  Status:'AKTIF'
+ };
+}
+function clearProductEntry(){
+ const form=document.getElementById('productEntryForm');if(form)form.reset();
+ document.getElementById('productBuyPrice').value='0';
+ document.getElementById('productSellPrice').value='0';
+ document.getElementById('productMinStock').value='0';
+ document.getElementById('productMedicineType').value='Bebas';
+ document.getElementById('productPriceType').value='FLEKSIBEL';
+ document.getElementById('productBarcode').value='';
+ document.getElementById('productName').focus();
+}
+function setProductSaveStatus(message,kind=''){
+ const el=document.getElementById('productSaveStatus');if(!el)return;
+ el.textContent=message;el.className='product-save-status'+(kind?' '+kind:'');
+}
+function submitProductEntry(event){
+ event.preventDefault();
+ if(!parentReady){setProductSaveStatus('Aplikasi induk belum terhubung. Coba muat ulang scanner.','error');return}
+ const payload=productFormPayload();
+ if(!payload.Barcode){setProductSaveStatus('Barcode wajib diisi. Pindai atau masukkan barcode terlebih dahulu.','error');document.getElementById('productBarcode').focus();return}
+ if(!payload.NamaProduk){setProductSaveStatus('Nama Produk wajib diisi.','error');document.getElementById('productName').focus();return}
+ if(!payload.KategoriID||!payload.SatuanID){setProductSaveStatus('Kategori dan Satuan wajib dipilih.','error');return}
+ if(Number(payload.HargaBeli)<0||Number(payload.HargaJual)<0||Number(payload.StokMinimal)<0){setProductSaveStatus('Harga dan stok minimal tidak boleh negatif.','error');return}
+ const btn=document.getElementById('saveProductFromScanner');btn.disabled=true;
+ setProductSaveStatus('Menyimpan produk ke aplikasi Apotek…');
+ post('APOTEK_PRODUCT_SAVE_REQUEST',{product:payload});
+}
+document.getElementById('productEntryForm').addEventListener('submit',submitProductEntry);
+document.getElementById('clearProductForm').addEventListener('click',clearProductEntry);
+document.getElementById('rescanBarcode').addEventListener('click',()=>{document.getElementById('productBarcode').value='';setStatus('Arahkan barcode produk berikutnya ke kamera.');});
+
 window.addEventListener('message',event=>{
  const expectedSource=embedded?window.parent:window.opener;
  if(!allowedParent||!expectedSource||event.origin!==parentOrigin||event.source!==expectedSource)return;
@@ -88,6 +204,23 @@ window.addEventListener('message',event=>{
   mode=d.mode==='product'?'product':'kasir';
   modeLabel.textContent=mode==='product'?'Mode: Tambah Produk':'Mode: Kasir';
   setStatus('Terhubung ke aplikasi. Siap memindai.');
+  const entry=document.getElementById('productEntryCard');
+  if(entry)entry.hidden=mode!=='product';
+  if(mode==='product')applyProductOptions(d.productOptions||{});
+ }
+ if(d.type==='APOTEK_PRODUCT_SAVE_RESULT'){
+  const btn=document.getElementById('saveProductFromScanner');if(btn)btn.disabled=false;
+  if(d.success){
+   productSavedCount++;
+   document.getElementById('productSavedCount').textContent=productSavedCount+' tersimpan';
+   setProductSaveStatus('✓ Produk berhasil disimpan. Form siap untuk produk berikutnya.','success');
+   applyProductOptions(d.productOptions||{});
+   clearProductEntry();
+   setProductSaveStatus('✓ Produk berhasil disimpan. Silakan pindai produk berikutnya.','success');
+   lastCode='';lastAt=0;
+  }else{
+   setProductSaveStatus(d.message||'Gagal menyimpan produk. Periksa kembali data.','error');
+  }
  }
  if(d.type==='APOTEK_SCANNER_CLOSE'){
   stopCamera();
