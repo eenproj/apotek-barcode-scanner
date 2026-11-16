@@ -195,6 +195,39 @@ document.getElementById('productEntryForm').addEventListener('submit',submitProd
 document.getElementById('clearProductForm').addEventListener('click',clearProductEntry);
 document.getElementById('rescanBarcode').addEventListener('click',()=>{document.getElementById('productBarcode').value='';setStatus('Arahkan barcode produk berikutnya ke kamera.');});
 
+
+// Product mode: request browser fullscreen automatically. Browsers require a
+// transient user activation, so if the load-time attempt is denied, retry
+// silently on the first natural user interaction (no dedicated fullscreen button).
+let productFullscreenRequested=false;
+async function requestProductFullscreen_(){
+ if(mode!=='product'||productFullscreenRequested||document.fullscreenElement)return;
+ const root=document.documentElement;
+ if(!root||!root.requestFullscreen)return;
+ try{
+  await root.requestFullscreen({navigationUI:'hide'});
+  productFullscreenRequested=true;
+  setStatus('Mode layar penuh aktif. Kamera siap digunakan.');
+ }catch(e){
+  // Fullscreen may be denied until the user interacts with this popup.
+ }
+}
+function armAutomaticProductFullscreen_(){
+ if(mode!=='product')return;
+ requestProductFullscreen_();
+ const retry=()=>{
+  if(document.fullscreenElement){productFullscreenRequested=true;return;}
+  requestProductFullscreen_();
+ };
+ ['pointerdown','touchstart','keydown'].forEach(type=>{
+  window.addEventListener(type,retry,{once:true,capture:true,passive:type!=='keydown'});
+ });
+ document.addEventListener('fullscreenchange',()=>{
+  if(document.fullscreenElement)productFullscreenRequested=true;
+  else productFullscreenRequested=false;
+ });
+}
+
 window.addEventListener('message',event=>{
  const expectedSource=embedded?window.parent:window.opener;
  if(!allowedParent||!expectedSource||event.origin!==parentOrigin||event.source!==expectedSource)return;
@@ -246,6 +279,7 @@ if(!nonce||!allowedParent||!parentWindow){
 }
 else{
  modeLabel.textContent=mode==='product'?'Mode: Tambah Produk':'Mode: Kasir';
+ if(mode==='product')armAutomaticProductFullscreen_();
  post('APOTEK_SCANNER_READY');
  startCamera();
 }
