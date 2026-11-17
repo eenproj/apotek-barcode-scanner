@@ -163,6 +163,7 @@ const modeLabel=document.getElementById('modeLabel');
 const embedded=window.parent!==window;
 const parentWindow=embedded?window.parent:window.opener;
 let qr=null, cameras=[], cameraIndex=0, lastCode='', lastAt=0, parentReady=false;
+const SCANNER_INPUT_ENGINE={buffer:'',lastAt:0,startAt:0,gapMs:85,maxLength:128};
 if(mode==='product'){
  ['manual','status','sendManual'].forEach(id=>document.getElementById(id)?.remove());
 }
@@ -309,6 +310,31 @@ document.getElementById('productEntryForm').addEventListener('submit',submitProd
 document.getElementById('clearProductForm').addEventListener('click',clearProductEntry);
 document.getElementById('rescanBarcode').addEventListener('click',()=>{document.getElementById('productBarcode').value='';setStatus('Arahkan barcode produk berikutnya ke kamera.');});
 
+// USB/Bluetooth HID wedge capture while the popup has focus; routes through sendCode().
+window.addEventListener('keydown',function(e){
+ const t=e.target,tag=String(t&&t.tagName||'').toLowerCase(),targetId=String(t&&t.id||'');
+ if((targetId==='manual'||targetId==='productBarcode')&&e.key==='Enter'){
+  e.preventDefault();sendCode(t.value);return;
+ }
+ const editable=tag==='input'||tag==='textarea'||tag==='select'||!!(t&&t.isContentEditable);
+ if(editable||e.ctrlKey||e.altKey||e.metaKey||e.key==='Shift'||e.key==='Tab')return;
+ const now=Date.now();
+ if(now-SCANNER_INPUT_ENGINE.lastAt>SCANNER_INPUT_ENGINE.gapMs)SCANNER_INPUT_ENGINE.buffer='';
+ SCANNER_INPUT_ENGINE.lastAt=now;
+ if(e.key==='Enter'){
+  const code=SCANNER_INPUT_ENGINE.buffer;SCANNER_INPUT_ENGINE.buffer='';
+  if(code.length>=4){
+   const elapsed=now-SCANNER_INPUT_ENGINE.startAt;
+   if(elapsed<=1200&&elapsed/Math.max(1,code.length)<=SCANNER_INPUT_ENGINE.gapMs)sendCode(code);
+  }
+  return;
+ }
+ if(e.key&&e.key.length===1){
+  if(!SCANNER_INPUT_ENGINE.buffer)SCANNER_INPUT_ENGINE.startAt=now;
+  SCANNER_INPUT_ENGINE.buffer+=e.key;
+  if(SCANNER_INPUT_ENGINE.buffer.length>SCANNER_INPUT_ENGINE.maxLength)SCANNER_INPUT_ENGINE.buffer=SCANNER_INPUT_ENGINE.buffer.slice(-SCANNER_INPUT_ENGINE.maxLength);
+ }
+},true);
 window.addEventListener('message',event=>{
  const expectedSource=embedded?window.parent:window.opener;
  if(!allowedParent||!expectedSource||event.origin!==parentOrigin||event.source!==expectedSource)return;
