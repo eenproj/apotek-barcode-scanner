@@ -39,8 +39,6 @@ header{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
 <main><section class="card">
 <header><div><h1>▦ Scanner Barcode Apotek</h1><p id="modeLabel">Menghubungkan ke aplikasi…</p></div><button id="closeBtn" type="button">Tutup</button></header>
 <div class="stage"><div id="reader"></div><div class="frame"><div class="laser"></div></div></div>
-<div id="status" class="status" role="status" aria-live="polite">Menyiapkan scanner…</div>
-<div class="row"><input id="manual" class="field" autocomplete="off" inputmode="text" placeholder="Atau masukkan barcode manual"><button id="sendManual" class="primary" type="button">Kirim barcode</button></div>
 <div class="row" style="margin-top:9px"><button id="retry" type="button">↻ Coba kamera lagi</button><button id="flip" type="button">Ganti kamera</button></div>
 
 <section id="productEntryCard" class="product-entry-card" hidden>
@@ -63,11 +61,9 @@ header{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
    <button type="submit" class="primary" id="saveProductFromScanner">Simpan Produk</button>
    <button type="button" id="clearProductForm">Kosongkan Form</button>
   </div>
-  <div id="productSaveStatus" class="product-save-status" role="status" aria-live="polite">Siap menerima produk baru.</div>
  </form>
 </section>
 
-<div class="hint">Hasil barcode dikirim hanya ke aplikasi Apotek yang membuka scanner, baik melalui popup (Kasir) maupun iframe (Tambah Produk). Pastikan URL scanner berasal dari GitHub Pages resmi milik Anda.</div>
 </section></main>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
@@ -77,13 +73,12 @@ const params=new URLSearchParams(location.search);
 const nonce=params.get('nonce')||'';
 const parentOrigin=params.get('parentOrigin')||'';
 const allowedParent=/^https:\/\/script\.google\.com$/.test(parentOrigin)||/^https:\/\/[a-z0-9-]+-script\.googleusercontent\.com$/.test(parentOrigin);
-const statusEl=document.getElementById('status');
 const modeLabel=document.getElementById('modeLabel');
 let mode=params.get('mode')==='product'?'product':'kasir';
 const embedded=window.parent!==window;
 const parentWindow=embedded?window.parent:window.opener;
 let qr=null, cameras=[], cameraIndex=0, lastCode='', lastAt=0, parentReady=false;
-function setStatus(text,isError=false){statusEl.textContent=text;statusEl.className='status'+(isError?' error':'')}
+function setStatus(text,isError=false){modeLabel.textContent=text;modeLabel.classList.toggle('error',!!isError)}
 function post(type,extra){
  if(!allowedParent||!parentWindow)return;
  if(!embedded&&parentWindow.closed)return;
@@ -95,7 +90,6 @@ function sendCode(raw){
  const now=Date.now();if(code===lastCode&&now-lastAt<1000)return;lastCode=code;lastAt=now;
  if(!parentReady){setStatus('Belum terhubung dengan aplikasi utama. Tutup scanner lalu buka kembali dari tombol Scan Kamera.',true);return}
  post('APOTEK_SCANNER_RESULT',{barcode:code});
- document.getElementById('manual').value=code;
  if(mode==='product'){
   const productBarcode=document.getElementById('productBarcode');
   if(productBarcode){productBarcode.value=code;setProductSaveStatus('Barcode berhasil dipindai. Lengkapi data produk lalu simpan.');}
@@ -111,7 +105,7 @@ async function startCamera(){
  try{
   setStatus('Meminta izin kamera…');
   cameras=await Html5Qrcode.getCameras();
-  if(!cameras.length){setStatus('Kamera tidak ditemukan. Gunakan input manual atau scanner USB/Bluetooth.',true);return}
+  if(!cameras.length){setStatus('Kamera tidak ditemukan. Periksa perangkat kamera dan izin browser.',true);return}
   cameraIndex=Math.min(cameraIndex,cameras.length-1);
   qr=new Html5Qrcode('reader',{formatsToSupport:[
    Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,
@@ -176,8 +170,9 @@ function clearProductEntry(){
  document.getElementById('productName').focus();
 }
 function setProductSaveStatus(message,kind=''){
- const el=document.getElementById('productSaveStatus');if(!el)return;
- el.textContent=message;el.className='product-save-status'+(kind?' '+kind:'');
+ const el=document.getElementById('modeLabel');if(!el)return;
+ el.textContent=message;el.classList.toggle('error',kind==='error');
+ el.classList.toggle('success',kind==='success');
 }
 function submitProductEntry(event){
  event.preventDefault();
@@ -194,39 +189,6 @@ function submitProductEntry(event){
 document.getElementById('productEntryForm').addEventListener('submit',submitProductEntry);
 document.getElementById('clearProductForm').addEventListener('click',clearProductEntry);
 document.getElementById('rescanBarcode').addEventListener('click',()=>{document.getElementById('productBarcode').value='';setStatus('Arahkan barcode produk berikutnya ke kamera.');});
-
-
-// Product mode: request browser fullscreen automatically. Browsers require a
-// transient user activation, so if the load-time attempt is denied, retry
-// silently on the first natural user interaction (no dedicated fullscreen button).
-let productFullscreenRequested=false;
-async function requestProductFullscreen_(){
- if(mode!=='product'||productFullscreenRequested||document.fullscreenElement)return;
- const root=document.documentElement;
- if(!root||!root.requestFullscreen)return;
- try{
-  await root.requestFullscreen({navigationUI:'hide'});
-  productFullscreenRequested=true;
-  setStatus('Mode layar penuh aktif. Kamera siap digunakan.');
- }catch(e){
-  // Fullscreen may be denied until the user interacts with this popup.
- }
-}
-function armAutomaticProductFullscreen_(){
- if(mode!=='product')return;
- requestProductFullscreen_();
- const retry=()=>{
-  if(document.fullscreenElement){productFullscreenRequested=true;return;}
-  requestProductFullscreen_();
- };
- ['pointerdown','touchstart','keydown'].forEach(type=>{
-  window.addEventListener(type,retry,{once:true,capture:true,passive:type!=='keydown'});
- });
- document.addEventListener('fullscreenchange',()=>{
-  if(document.fullscreenElement)productFullscreenRequested=true;
-  else productFullscreenRequested=false;
- });
-}
 
 window.addEventListener('message',event=>{
  const expectedSource=embedded?window.parent:window.opener;
@@ -260,8 +222,6 @@ window.addEventListener('message',event=>{
   if(!embedded)window.close();
  }
 });
-document.getElementById('sendManual').addEventListener('click',()=>sendCode(document.getElementById('manual').value));
-document.getElementById('manual').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendCode(e.currentTarget.value)}});
 document.getElementById('retry').addEventListener('click',startCamera);
 document.getElementById('flip').addEventListener('click',async()=>{if(cameras.length<2){setStatus('Perangkat hanya menyediakan satu kamera.');return}cameraIndex=(cameraIndex+1)%cameras.length;await startCamera()});
 document.getElementById('closeBtn').addEventListener('click',async()=>{
@@ -275,11 +235,9 @@ if(!nonce||!allowedParent||!parentWindow){
  modeLabel.textContent='Koneksi tidak valid';
  setStatus('Buka halaman scanner melalui tombol Barcode Scanner di aplikasi Apotek. Jangan membuka URL ini secara langsung.',true);
  document.getElementById('retry').disabled=true;
- document.getElementById('sendManual').disabled=true;
 }
 else{
  modeLabel.textContent=mode==='product'?'Mode: Tambah Produk':'Mode: Kasir';
- if(mode==='product')armAutomaticProductFullscreen_();
  post('APOTEK_SCANNER_READY');
  startCamera();
 }
