@@ -62,6 +62,11 @@ main>.card{width:min(100%,1160px);max-width:1160px;min-width:0;margin:0 auto;pad
 .product-entry-actions button.primary{background:#0f766e;border-color:#0f766e}
 .product-save-status{font-size:12px}
 body:not(.product-mode) .scanner-workspace{display:block}
+body:not(.product-mode) main>.card{
+ width:min(100%,600px);
+ max-width:600px;
+ margin:0 auto;
+}
 body.product-mode .scanner-workspace{grid-template-columns:minmax(300px,.82fr) minmax(450px,1.18fr)}
 body.product-mode #status,body.product-mode .scanner-camera-column>.row:first-of-type{display:none!important}
 @media(max-width:900px){
