@@ -10,143 +10,17 @@
 *{box-sizing:border-box}body{margin:0;background:#f1f5f9;color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
 main{max-width:650px;margin:0 auto;padding:16px}.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:0 12px 40px #0f172a12}
 header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}h1{font-size:20px;margin:0}p{color:var(--muted);margin:6px 0 12px}.stage{position:relative;overflow:hidden;background:#020617;border-radius:16px;min-height:240px}#reader{width:100%;min-height:240px}#reader video{width:100%;object-fit:cover!important;border-radius:16px}.frame{pointer-events:none;position:absolute;z-index:2;inset:22% 9%;border:2px solid #34d399;border-radius:14px;box-shadow:0 0 0 999px #0002}.laser{position:absolute;left:3%;right:3%;top:50%;height:2px;background:#fb4b4b;box-shadow:0 0 9px 2px #f84646a6;animation:laser 1.8s ease-in-out infinite alternate}@keyframes laser{from{transform:translateY(-55px)}to{transform:translateY(55px)}}
-.status{padding:12px 0;min-height:44px;color:#334155}.row{display:flex;gap:8px;flex-wrap:wrap}.row input{flex:1;min-width:180px}
-.scanner-camera-column>.row:last-child{display:flex;justify-content:center;align-items:center;flex-wrap:nowrap;gap:10px;margin-top:12px!important}
-.scanner-camera-column>.row:last-child button{flex:0 1 auto;min-width:0;white-space:nowrap}
-.field,button{font:inherit;border-radius:10px;padding:11px 12px;border:1px solid #cbd5e1}.field{width:100%}button{cursor:pointer;background:#fff;color:var(--ink);font-weight:650}button.primary{background:#047857;border-color:#047857;color:white}button:disabled{opacity:.55;cursor:not-allowed}.hint{font-size:12px;color:var(--muted);margin-top:12px}.code{font:700 17px ui-monospace,SFMono-Regular,Consolas,monospace;word-break:break-all}.pill{border-radius:999px;padding:6px 10px;background:#dcfce7;color:#166534;display:inline-block;font-weight:700}.error{color:var(--red)}
-.product-entry-card{margin-top:16px;padding:16px;border:1px solid #cbd5e1;border-radius:16px;background:#f8fafc}
-.product-entry-card[hidden]{display:none!important}
-.product-entry-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px}
-.product-entry-heading h2{font-size:17px;margin:0;color:#0f172a}
-.product-entry-heading p{font-size:12px;margin:4px 0 0;color:#64748b}
-.product-entry-count{flex:0 0 auto;padding:5px 9px;border-radius:999px;background:#dcfce7;color:#166534;font-size:11px;font-weight:700}
-.product-entry-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.product-entry-grid label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:650;color:#334155;min-width:0}
-.product-entry-grid label.wide{grid-column:1/-1}
-.product-entry-grid input,.product-entry-grid select{width:100%;min-width:0;padding:10px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#0f172a;font:inherit;font-weight:400}
-.product-entry-inline{display:flex;gap:6px}
-.product-entry-inline input{flex:1}
-.product-entry-inline button,.product-entry-actions button{padding:10px 12px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#0f172a;font-weight:650}
-.product-entry-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
-.product-entry-actions button.primary{background:#047857;border-color:#047857;color:#fff}
-.product-entry-actions button:disabled{opacity:.55;cursor:wait}
-.product-save-status{margin-top:10px;min-height:20px;font-size:12px;color:#475569}
-.product-save-status.success{color:#047857;font-weight:700}
-.product-save-status.error{color:#b91c1c}
-@media(max-width:520px){.product-entry-card{padding:12px}.product-entry-grid{grid-template-columns:1fr}.product-entry-grid label.wide{grid-column:auto}.product-entry-actions button{flex:1}.product-entry-inline{flex-wrap:wrap}}
-
-@media(max-width:480px){main{padding:10px}.card{padding:13px}h1{font-size:18px}}
-
-html,body{width:100%;min-width:0;margin:0}
-main{width:100%;max-width:none;margin:0;padding:12px;min-width:0}
-main>.card{width:100%;max-width:none;min-width:0}
-
-
-html,body{width:100%;min-width:0;margin:0}
-body{background:#eef3f8}
-main{width:100%;max-width:none;margin:0 auto;padding:clamp(10px,2vw,24px);min-width:0}
-main>.card{width:min(100%,1160px);max-width:1160px;min-width:0;margin:0 auto;padding:clamp(14px,2vw,24px);border:1px solid #dce5ef;border-radius:16px;box-shadow:0 20px 55px rgba(8,27,50,.16)}
-.scanner-workspace{display:grid;grid-template-columns:minmax(320px,.88fr) minmax(440px,1.12fr);gap:18px;align-items:start}
-.scanner-camera-column{min-width:0}
-.scanner-camera-column .stage{min-height:320px}
-.scanner-camera-column #reader,.scanner-camera-column #reader video{min-height:320px}
-.product-entry-card{margin:0;padding:20px;border:1px solid #dce5ef;border-top:3px solid #0d9488;border-radius:14px;background:#fff;box-shadow:0 8px 24px rgba(8,27,50,.07)}
-.product-entry-heading{align-items:center;padding-bottom:12px;border-bottom:1px solid #e8eef5}
-.product-entry-heading h2{font-size:18px;font-weight:700;letter-spacing:-.02em}
-.product-entry-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:13px 14px}
-.product-entry-grid label{font-size:12px;color:#334155}
-.product-entry-grid input,.product-entry-grid select{min-height:40px;padding:9px 11px;border:1px solid #d5deea;border-radius:8px;background:#fbfdff;font-size:13px}
-.product-entry-grid input:focus,.product-entry-grid select:focus{outline:2px solid rgba(13,148,136,.18);border-color:#0d9488}
-.product-entry-actions{padding-top:12px;border-top:1px solid #e8eef5}
-.product-entry-actions button{min-height:40px;padding:9px 15px;font-size:13px}
-.product-entry-actions button.primary{background:#0f766e;border-color:#0f766e}
-.product-save-status{font-size:12px}
-body:not(.product-mode){
- width:min(600px,100%);
- min-width:0;
- margin-left:auto;
- margin-right:0;
-}
-body:not(.product-mode) main{
- width:100%;
- max-width:none;
- margin:0;
- padding:0;
-}
-body:not(.product-mode) .scanner-workspace{display:block}
-body:not(.product-mode) main>.card{
- width:100%;
- max-width:none;
- min-width:0;
- margin:0;
-}
-body.product-mode .scanner-workspace{grid-template-columns:minmax(300px,.82fr) minmax(450px,1.18fr)}
-body.product-mode #status,body.product-mode .scanner-camera-column>.row:first-of-type{display:none!important}
-@media(max-width:900px){
- main>.card{max-width:100%}
- .scanner-workspace,body.product-mode .scanner-workspace{grid-template-columns:minmax(260px,.8fr) minmax(340px,1.2fr);gap:12px}
- .product-entry-card{padding:14px}
- .product-entry-grid{gap:10px}
- .scanner-camera-column .stage,.scanner-camera-column #reader,.scanner-camera-column #reader video{min-height:270px}
-}
-@media(max-width:700px){
- .scanner-workspace,body.product-mode .scanner-workspace{grid-template-columns:1fr}
- .scanner-camera-column .stage,.scanner-camera-column #reader,.scanner-camera-column #reader video{min-height:260px}
- .product-entry-card{padding:14px}
-}
-@media(max-width:520px){
- main{padding:6px}
- main>.card{padding:12px;border-radius:12px}
- header{align-items:flex-start}
- header h1{font-size:17px}
- .product-entry-grid{grid-template-columns:1fr}
- .product-entry-grid label.wide{grid-column:auto}
- .product-entry-heading{align-items:flex-start}
- .product-entry-actions{flex-direction:column}
- .product-entry-actions button{width:100%}
- .product-entry-inline{flex-wrap:nowrap}
- .product-entry-inline button{white-space:nowrap}
- .scanner-camera-column>.row:last-child{justify-content:center;gap:8px}
- .scanner-camera-column>.row:last-child button{padding:10px 11px;font-size:13px}
-}
-
+.status{padding:12px 0;min-height:44px;color:#334155}.row{display:flex;gap:8px;flex-wrap:wrap}.row input{flex:1;min-width:180px}.field,button{font:inherit;border-radius:10px;padding:11px 12px;border:1px solid #cbd5e1}.field{width:100%}button{cursor:pointer;background:#fff;color:var(--ink);font-weight:650}button.primary{background:#047857;border-color:#047857;color:white}button:disabled{opacity:.55;cursor:not-allowed}.hint{font-size:12px;color:var(--muted);margin-top:12px}.code{font:700 17px ui-monospace,SFMono-Regular,Consolas,monospace;word-break:break-all}.pill{border-radius:999px;padding:6px 10px;background:#dcfce7;color:#166534;display:inline-block;font-weight:700}.error{color:var(--red)}@media(max-width:480px){main{padding:10px}.card{padding:13px}h1{font-size:18px}}
 </style>
 </head>
 <body>
 <main><section class="card">
 <header><div><h1>▦ Scanner Barcode Apotek</h1><p id="modeLabel">Menghubungkan ke aplikasi…</p></div><button id="closeBtn" type="button">Tutup</button></header>
-<div class="scanner-workspace">
- <div class="scanner-camera-column">
-  <div class="stage"><div id="reader"></div><div class="frame"><div class="laser"></div></div></div>
-  <div id="status" class="status" role="status" aria-live="polite">Menyiapkan scanner…</div>
-  <div class="row"><input id="manual" class="field" autocomplete="off" inputmode="text" placeholder="Atau masukkan barcode manual"><button id="sendManual" class="primary" type="button">Kirim barcode</button></div>
-  <div class="row" style="margin-top:9px"><button id="retry" type="button">↻ Coba kamera lagi</button><button id="flip" type="button">Ganti kamera</button></div>
- </div>
- <section id="productEntryCard" class="product-entry-card" hidden>
- <div class="product-entry-heading"><div><h2>Form Tambah Produk</h2><p>Lengkapi data produk. Setelah disimpan, formulir siap untuk produk berikutnya tanpa menutup kamera.</p></div><span class="product-entry-count" id="productSavedCount">0 tersimpan</span></div>
- <form id="productEntryForm" novalidate>
-  <div class="product-entry-grid">
-   <label>Kode Produk<input id="productCode" autocomplete="off" placeholder="Otomatis oleh aplikasi"></label>
-   <label>Barcode<div class="product-entry-inline"><input id="productBarcode" autocomplete="off" required placeholder="Hasil scan otomatis"><button id="rescanBarcode" type="button">Scan ulang</button></div></label>
-   <label class="wide">Nama Produk<input id="productName" autocomplete="off" required placeholder="Masukkan nama produk"></label>
-   <label>Kategori<select id="productCategory" required></select></label>
-   <label>Satuan<select id="productUnit" required></select></label>
-   <label>Harga Beli<input id="productBuyPrice" type="number" min="0" step="any" value="0" required></label>
-   <label>Harga Jual<input id="productSellPrice" type="number" min="0" step="any" value="0" required></label>
-   <label>Jenis Obat<select id="productMedicineType"><option value="Bebas">Bebas</option><option value="Keras">Keras</option></select></label>
-   <label>Sifat Harga<select id="productPriceType"><option value="FLEKSIBEL">FLEKSIBEL</option><option value="KHUSUS">KHUSUS</option></select></label>
-   <label>Stok Minimal<input id="productMinStock" type="number" min="0" step="1" value="0"></label>
-   <label>Rak Penyimpanan<select id="productShelf"></select></label>
-  </div>
-  <div class="product-entry-actions">
-   <button type="submit" class="primary" id="saveProductFromScanner">Simpan Produk</button>
-   <button type="button" id="clearProductForm">Kosongkan Form</button>
-  </div>
-  
- </form>
- </section>
-</div>
-
+<div class="stage"><div id="reader"></div><div class="frame"><div class="laser"></div></div></div>
+<div id="status" class="status" role="status" aria-live="polite">Menyiapkan scanner…</div>
+<div class="row"><input id="manual" class="field" autocomplete="off" inputmode="text" placeholder="Atau masukkan barcode manual"><button id="sendManual" class="primary" type="button">Kirim barcode</button></div>
+<div class="row" style="margin-top:9px"><button id="retry" type="button">↻ Coba kamera lagi</button><button id="flip" type="button">Ganti kamera</button></div>
+<div class="hint">Hasil barcode dikirim hanya ke jendela aplikasi yang membuka scanner. Pastikan URL scanner ini berasal dari GitHub Pages resmi milik Anda.</div>
 </section></main>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
@@ -156,84 +30,40 @@ const params=new URLSearchParams(location.search);
 const nonce=params.get('nonce')||'';
 const parentOrigin=params.get('parentOrigin')||'';
 const allowedParent=/^https:\/\/script\.google\.com$/.test(parentOrigin)||/^https:\/\/[a-z0-9-]+-script\.googleusercontent\.com$/.test(parentOrigin);
-let mode=params.get('mode')==='product'?'product':'kasir';
-if(mode==='product')document.body.classList.add('product-mode');
-const statusEl=mode==='product'?null:document.getElementById('status');
+const statusEl=document.getElementById('status');
 const modeLabel=document.getElementById('modeLabel');
-const embedded=window.parent!==window;
-const parentWindow=embedded?window.parent:window.opener;
+let mode=params.get('mode')==='product'?'product':'kasir';
 let qr=null, cameras=[], cameraIndex=0, lastCode='', lastAt=0, parentReady=false;
-if(mode==='product'){
- ['manual','status','sendManual'].forEach(id=>document.getElementById(id)?.remove());
-}
-
-function setStatus(text,isError=false){if(statusEl){statusEl.textContent=text;statusEl.className='status'+(isError?' error':'')}else if(modeLabel){modeLabel.textContent=String(text);modeLabel.classList.toggle('error',!!isError)}}
-function post(type,extra){
- if(!allowedParent||!parentWindow)return;
- if(!embedded&&parentWindow.closed)return;
- try{parentWindow.postMessage(Object.assign({type,nonce},extra||{}),parentOrigin)}catch(e){}
-}
+function setStatus(text,isError=false){statusEl.textContent=text;statusEl.className='status'+(isError?' error':'')}
+function post(type,extra){if(!allowedParent||!window.opener||window.opener.closed)return;window.opener.postMessage(Object.assign({type,nonce},extra||{}),parentOrigin)}
 function norm(v){return String(v||'').trim().replace(/\s+/g,'').toUpperCase()}
-function sendCode(raw){
+function sendCode(raw,source='camera'){
  const code=norm(raw);if(!code)return;
  const now=Date.now();if(code===lastCode&&now-lastAt<1000)return;lastCode=code;lastAt=now;
  if(!parentReady){setStatus('Belum terhubung dengan aplikasi utama. Tutup scanner lalu buka kembali dari tombol Scan Kamera.',true);return}
- post('APOTEK_SCANNER_RESULT',{barcode:code});
- const manualInput=document.getElementById('manual');if(manualInput)manualInput.value=code;
- if(mode==='product'){
-  const productBarcode=document.getElementById('productBarcode');
-  if(productBarcode){productBarcode.value=code;setProductSaveStatus('Barcode berhasil dipindai. Lengkapi data produk lalu simpan.');}
- }
+ post('APOTEK_SCANNER_RESULT',{barcode:code,source});
+ document.getElementById('manual').value=code;
  setStatus('✓ Barcode terkirim: '+code);
  try{const C=window.AudioContext||window.webkitAudioContext;if(C){const c=new C(),o=c.createOscillator(),g=c.createGain();o.frequency.value=1450;g.gain.value=.08;o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.1);o.onended=()=>c.close()}}catch(e){}
 }
 async function stopCamera(){if(qr){try{if(qr.isScanning)await qr.stop()}catch(e){}try{qr.clear()}catch(e){}qr=null}document.getElementById('reader').innerHTML=''}
-function isMobileScannerDevice(){
- return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'');
-}
-function rearCameraIndex(list){
- return list.findIndex(camera=>/back|rear|environment|belakang/i.test(camera.label||''));
-}
 async function startCamera(){
  await stopCamera();
  if(!window.isSecureContext){setStatus('Kamera memerlukan HTTPS. Pastikan halaman ini dibuka dari GitHub Pages.',true);return}
  if(!window.Html5Qrcode){setStatus('Library scanner gagal dimuat. Periksa koneksi internet, atau gunakan input manual.',true);return}
- const scanConfig={fps:12,qrbox:(w,h)=>({width:Math.floor(Math.min(w*.82,420)),height:Math.floor(Math.min(h*.42,150))}),aspectRatio:1.777,disableFlip:false};
- const onDecoded=decoded=>sendCode(decoded);
  try{
-  setStatus(isMobileScannerDevice()?'Mengaktifkan kamera belakang…':'Meminta izin kamera…');
+  setStatus('Meminta izin kamera…');
+  cameras=await Html5Qrcode.getCameras();
+  if(!cameras.length){setStatus('Kamera tidak ditemukan. Gunakan input manual atau scanner USB/Bluetooth.',true);return}
+  cameraIndex=Math.min(cameraIndex,cameras.length-1);
   qr=new Html5Qrcode('reader',{formatsToSupport:[
    Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,
    Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.CODE_39,
    Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,
    Html5QrcodeSupportedFormats.QR_CODE
   ],verbose:false});
-
-  if(isMobileScannerDevice()){
-   // Utamakan kamera belakang melalui MediaTrackConstraints.
-   try{
-    await qr.start({facingMode:"environment"},scanConfig,onDecoded,()=>{});
-    cameras=await Html5Qrcode.getCameras().catch(()=>[]);
-    const rearIndex=rearCameraIndex(cameras);
-    if(rearIndex>=0)cameraIndex=rearIndex;
-    else cameraIndex=0;
-   }catch(rearError){
-    // Fallback untuk browser/perangkat yang tidak mendukung facingMode.
-    const rearName=String(rearError&&rearError.name||'');
-    if(rearName==='NotAllowedError'||/permission denied|notallowederror/i.test(String(rearError&&rearError.message||'')))throw rearError;
-    cameras=await Html5Qrcode.getCameras();
-    if(!cameras.length)throw rearError;
-    const rearIndex=rearCameraIndex(cameras);
-    cameraIndex=rearIndex>=0?rearIndex:Math.min(cameraIndex,cameras.length-1);
-    await qr.start(cameras[cameraIndex].id,scanConfig,onDecoded,()=>{});
-   }
-  }else{
-   cameras=await Html5Qrcode.getCameras();
-   if(!cameras.length){setStatus('Kamera tidak ditemukan. Gunakan input manual atau scanner USB/Bluetooth.',true);return}
-   cameraIndex=Math.min(cameraIndex,cameras.length-1);
-   await qr.start(cameras[cameraIndex].id,scanConfig,onDecoded,()=>{});
-  }
-  setStatus(isMobileScannerDevice()?'Kamera belakang aktif — arahkan barcode ke bingkai. Mode multi-scan aktif.':'Kamera aktif — arahkan barcode ke bingkai. Mode multi-scan aktif.');
+  await qr.start(cameras[cameraIndex].id,{fps:12,qrbox:(w,h)=>({width:Math.floor(Math.min(w*.82,420)),height:Math.floor(Math.min(h*.42,150))}),aspectRatio:1.777,disableFlip:false},decoded=>sendCode(decoded,'camera'),()=>{});
+  setStatus('Kamera aktif — arahkan barcode ke bingkai. Mode multi-scan aktif.');
  }catch(e){
   const n=String(e&&e.name||''),m=String(e&&e.message||e||'');
   let tip='Periksa izin kamera browser dan tutup aplikasi lain yang sedang memakai kamera.';
@@ -243,126 +73,43 @@ async function startCamera(){
   setStatus(tip+' Detail: '+n+' '+m,true);
  }
 }
-
-let productSavedCount=0;
-function fillSelect(id,items,placeholder){
- const el=document.getElementById(id);if(!el)return;
- el.innerHTML='';
- const first=document.createElement('option');first.value='';first.textContent=placeholder;el.appendChild(first);
- (Array.isArray(items)?items:[]).forEach(item=>{
-  const opt=document.createElement('option');opt.value=String(item.id??'');opt.textContent=String(item.name??'');el.appendChild(opt);
- });
-}
-function applyProductOptions(options){
- const o=options||{};
- fillSelect('productCategory',o.categories,'Pilih kategori');
- fillSelect('productUnit',o.units,'Pilih satuan');
- fillSelect('productShelf',o.shelves,'Tanpa rak');
- const code=document.getElementById('productCode');
- if(code)code.value=String(o.nextProductCode||'');
-}
-function productFormPayload(){
- return {
-  ID:'',
-  KodeProduk:document.getElementById('productCode').value.trim(),
-  Barcode:document.getElementById('productBarcode').value.trim(),
-  NamaProduk:document.getElementById('productName').value.trim(),
-  KategoriID:document.getElementById('productCategory').value,
-  SatuanID:document.getElementById('productUnit').value,
-  HargaBeli:document.getElementById('productBuyPrice').value,
-  HargaJual:document.getElementById('productSellPrice').value,
-  SifatHarga:document.getElementById('productPriceType').value,
-  JenisObat:document.getElementById('productMedicineType').value,
-  StokMinimal:document.getElementById('productMinStock').value,
-  RakID:document.getElementById('productShelf').value,
-  Status:'AKTIF'
- };
-}
-function clearProductEntry(){
- const form=document.getElementById('productEntryForm');if(form)form.reset();
- document.getElementById('productBuyPrice').value='0';
- document.getElementById('productSellPrice').value='0';
- document.getElementById('productMinStock').value='0';
- document.getElementById('productMedicineType').value='Bebas';
- document.getElementById('productPriceType').value='FLEKSIBEL';
- document.getElementById('productBarcode').value='';
- document.getElementById('productName').focus();
-}
-function setProductSaveStatus(message,kind=''){
- const el=document.getElementById('modeLabel');if(!el)return;
- el.textContent=message;el.classList.toggle('error',kind==='error');
- if(kind==='success')el.style.color='#047857';else if(kind==='error')el.style.color='#b91c1c';else el.style.color='';
-}
-function submitProductEntry(event){
- event.preventDefault();
- if(!parentReady){setProductSaveStatus('Aplikasi induk belum terhubung. Coba muat ulang scanner.','error');return}
- const payload=productFormPayload();
- if(!payload.Barcode){setProductSaveStatus('Barcode wajib diisi. Pindai atau masukkan barcode terlebih dahulu.','error');document.getElementById('productBarcode').focus();return}
- if(!payload.NamaProduk){setProductSaveStatus('Nama Produk wajib diisi.','error');document.getElementById('productName').focus();return}
- if(!payload.KategoriID||!payload.SatuanID){setProductSaveStatus('Kategori dan Satuan wajib dipilih.','error');return}
- if(Number(payload.HargaBeli)<0||Number(payload.HargaJual)<0||Number(payload.StokMinimal)<0){setProductSaveStatus('Harga dan stok minimal tidak boleh negatif.','error');return}
- const btn=document.getElementById('saveProductFromScanner');btn.disabled=true;
- setProductSaveStatus('Menyimpan produk ke aplikasi Apotek…');
- post('APOTEK_PRODUCT_SAVE_REQUEST',{product:payload});
-}
-document.getElementById('productEntryForm').addEventListener('submit',submitProductEntry);
-document.getElementById('clearProductForm').addEventListener('click',clearProductEntry);
-document.getElementById('rescanBarcode').addEventListener('click',()=>{document.getElementById('productBarcode').value='';setStatus('Arahkan barcode produk berikutnya ke kamera.');});
-
 window.addEventListener('message',event=>{
- const expectedSource=embedded?window.parent:window.opener;
- if(!allowedParent||!expectedSource||event.origin!==parentOrigin||event.source!==expectedSource)return;
+ if(!allowedParent||event.origin!==parentOrigin||event.source!==window.opener)return;
  const d=event.data;if(!d||typeof d!=='object'||d.nonce!==nonce)return;
- if(d.type==='APOTEK_SCANNER_INIT'){
-  parentReady=true;
-  mode=d.mode==='product'?'product':'kasir';
-  modeLabel.textContent=mode==='product'?'Mode: Tambah Produk':'Mode: Kasir';
-  setStatus('Terhubung ke aplikasi. Siap memindai.');
-  const entry=document.getElementById('productEntryCard');
-  if(entry)entry.hidden=mode!=='product';
-  if(mode==='product')applyProductOptions(d.productOptions||{});
- }
- if(d.type==='APOTEK_PRODUCT_SAVE_RESULT'){
-  const btn=document.getElementById('saveProductFromScanner');if(btn)btn.disabled=false;
-  if(d.success){
-   productSavedCount++;
-   document.getElementById('productSavedCount').textContent=productSavedCount+' tersimpan';
-   setProductSaveStatus('✓ Produk berhasil disimpan. Form siap untuk produk berikutnya.','success');
-   applyProductOptions(d.productOptions||{});
-   clearProductEntry();
-   setProductSaveStatus('✓ Produk berhasil disimpan. Silakan pindai produk berikutnya.','success');
-   lastCode='';lastAt=0;
-  }else{
-   setProductSaveStatus(d.message||'Gagal menyimpan produk. Periksa kembali data.','error');
-  }
- }
- if(d.type==='APOTEK_SCANNER_CLOSE'){
-  stopCamera();
-  if(!embedded)window.close();
- }
+ if(d.type==='APOTEK_SCANNER_INIT'){parentReady=true;mode=d.mode==='product'?'product':'kasir';modeLabel.textContent=mode==='product'?'Mode: Tambah Produk':'Mode: Kasir';setStatus('Terhubung ke aplikasi. Siap memindai.')}
+ if(d.type==='APOTEK_SCANNER_CLOSE'){stopCamera();window.close()}
 });
-const sendManualBtn=document.getElementById('sendManual');if(sendManualBtn)sendManualBtn.addEventListener('click',()=>sendCode(document.getElementById('manual')?.value||''));
-document.getElementById('manual')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendCode(e.currentTarget.value)}});
+// USB/Bluetooth HID scanners can type directly into the scanner popup.
+let hidBuffer='',hidStartedAt=0,hidLastAt=0;
+document.addEventListener('keydown',function(e){
+ if(e.ctrlKey||e.altKey||e.metaKey)return;
+ const target=e.target,tag=String(target?.tagName||'').toLowerCase();
+ const manualFocused=target?.id==='manual';
+ const editable=manualFocused||tag==='textarea'||(tag==='input'&&!manualFocused)||target?.isContentEditable;
+ const now=Date.now();
+ if(now-hidLastAt>100){hidBuffer='';hidStartedAt=now}
+ hidLastAt=now;
+ if(e.key==='Enter'){
+  const code=hidBuffer;hidBuffer='';
+  if(code.length>=4&&now-hidStartedAt<=1200&&(now-hidStartedAt)/Math.max(1,code.length)<=90&&!editable){
+   e.preventDefault();sendCode(code,'usb-bluetooth-hid');
+  }
+  return;
+ }
+ if(e.key.length===1&&!editable){
+  if(!hidBuffer)hidStartedAt=now;
+  hidBuffer+=e.key;
+  if(hidBuffer.length>128)hidBuffer=hidBuffer.slice(-128);
+ }
+},true);
+document.getElementById('sendManual').addEventListener('click',()=>sendCode(document.getElementById('manual').value,'manual'));
+document.getElementById('manual').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendCode(e.currentTarget.value,'manual')}});
 document.getElementById('retry').addEventListener('click',startCamera);
 document.getElementById('flip').addEventListener('click',async()=>{if(cameras.length<2){setStatus('Perangkat hanya menyediakan satu kamera.');return}cameraIndex=(cameraIndex+1)%cameras.length;await startCamera()});
-document.getElementById('closeBtn').addEventListener('click',async()=>{
- await stopCamera();
- post('APOTEK_SCANNER_CLOSE');
- if(!embedded)window.close();
- else setStatus('Scanner ditutup. Anda dapat menutup card scanner dari aplikasi Apotek.');
-});
+document.getElementById('closeBtn').addEventListener('click',async()=>{await stopCamera();post('APOTEK_SCANNER_CLOSE');window.close()});
 window.addEventListener('beforeunload',()=>{try{if(qr&&qr.isScanning)qr.stop()}catch(e){}post('APOTEK_SCANNER_CLOSE')});
-if(!nonce||!allowedParent||!parentWindow){
- modeLabel.textContent='Koneksi tidak valid';
- setStatus('Buka halaman scanner melalui tombol Barcode Scanner di aplikasi Apotek. Jangan membuka URL ini secara langsung.',true);
- document.getElementById('retry').disabled=true;
- document.getElementById('sendManual').disabled=true;
-}
-else{
- modeLabel.textContent=mode==='product'?'Mode: Tambah Produk':'Mode: Kasir';
- post('APOTEK_SCANNER_READY');
- startCamera();
-}
+if(!nonce||!allowedParent||!window.opener){modeLabel.textContent='Koneksi tidak valid';setStatus('Buka halaman scanner melalui tombol Scan Kamera di aplikasi Apotek. Jangan membuka URL ini secara langsung.',true);document.getElementById('retry').disabled=true;document.getElementById('sendManual').disabled=true}
+else{modeLabel.textContent=mode==='product'?'Mode: Tambah Produk':'Mode: Kasir';post('APOTEK_SCANNER_READY');startCamera()}
 })();
 </script>
 </body>
