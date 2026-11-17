@@ -33,15 +33,17 @@ const allowedParent=/^https:\/\/script\.google\.com$/.test(parentOrigin)||/^http
 const statusEl=document.getElementById('status');
 const modeLabel=document.getElementById('modeLabel');
 let mode=params.get('mode')==='product'?'product':'kasir';
+const multiScan=params.get('multiScan')==='true';
+let hidBuffer='',hidLastAt=0,hidStartAt=0;
 let qr=null, cameras=[], cameraIndex=0, lastCode='', lastAt=0, parentReady=false;
 function setStatus(text,isError=false){statusEl.textContent=text;statusEl.className='status'+(isError?' error':'')}
 function post(type,extra){if(!allowedParent||!window.opener||window.opener.closed)return;window.opener.postMessage(Object.assign({type,nonce},extra||{}),parentOrigin)}
 function norm(v){return String(v||'').trim().replace(/\s+/g,'').toUpperCase()}
-function sendCode(raw,source='camera'){
+function sendCode(raw){
  const code=norm(raw);if(!code)return;
  const now=Date.now();if(code===lastCode&&now-lastAt<1000)return;lastCode=code;lastAt=now;
  if(!parentReady){setStatus('Belum terhubung dengan aplikasi utama. Tutup scanner lalu buka kembali dari tombol Scan Kamera.',true);return}
- post('APOTEK_SCANNER_RESULT',{barcode:code,source});
+ post('APOTEK_SCANNER_RESULT',{barcode:code});
  document.getElementById('manual').value=code;
  setStatus('✓ Barcode terkirim: '+code);
  try{const C=window.AudioContext||window.webkitAudioContext;if(C){const c=new C(),o=c.createOscillator(),g=c.createGain();o.frequency.value=1450;g.gain.value=.08;o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.1);o.onended=()=>c.close()}}catch(e){}
@@ -62,7 +64,7 @@ async function startCamera(){
    Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,
    Html5QrcodeSupportedFormats.QR_CODE
   ],verbose:false});
-  await qr.start(cameras[cameraIndex].id,{fps:12,qrbox:(w,h)=>({width:Math.floor(Math.min(w*.82,420)),height:Math.floor(Math.min(h*.42,150))}),aspectRatio:1.777,disableFlip:false},decoded=>sendCode(decoded,'camera'),()=>{});
+  await qr.start(cameras[cameraIndex].id,{fps:12,qrbox:(w,h)=>({width:Math.floor(Math.min(w*.82,420)),height:Math.floor(Math.min(h*.42,150))}),aspectRatio:1.777,disableFlip:false},decoded=>sendCode(decoded),()=>{});
   setStatus('Kamera aktif — arahkan barcode ke bingkai. Mode multi-scan aktif.');
  }catch(e){
   const n=String(e&&e.name||''),m=String(e&&e.message||e||'');
@@ -73,37 +75,38 @@ async function startCamera(){
   setStatus(tip+' Detail: '+n+' '+m,true);
  }
 }
-window.addEventListener('message',event=>{
- if(!allowedParent||event.origin!==parentOrigin||event.source!==window.opener)return;
- const d=event.data;if(!d||typeof d!=='object'||d.nonce!==nonce)return;
- if(d.type==='APOTEK_SCANNER_INIT'){parentReady=true;mode=d.mode==='product'?'product':'kasir';modeLabel.textContent=mode==='product'?'Mode: Tambah Produk':'Mode: Kasir';setStatus('Terhubung ke aplikasi. Siap memindai.')}
- if(d.type==='APOTEK_SCANNER_CLOSE'){stopCamera();window.close()}
-});
-// USB/Bluetooth HID scanners can type directly into the scanner popup.
-let hidBuffer='',hidStartedAt=0,hidLastAt=0;
-document.addEventListener('keydown',function(e){
- if(e.ctrlKey||e.altKey||e.metaKey)return;
- const target=e.target,tag=String(target?.tagName||'').toLowerCase();
- const manualFocused=target?.id==='manual';
- const editable=manualFocused||tag==='textarea'||(tag==='input'&&!manualFocused)||target?.isContentEditable;
+// USB/Bluetooth HID scanners type into the active popup window and usually terminate with Enter.
+window.addEventListener('keydown',event=>{
+ const target=event.target;
+ const tag=String(target?.tagName||'').toLowerCase();
+ const isManual=target&&(['manual'].includes(target.id)||tag==='input'||tag==='textarea'||target.isContentEditable);
+ if(isManual)return;
+ if(event.ctrlKey||event.altKey||event.metaKey||event.key==='Shift'||event.key==='Tab')return;
  const now=Date.now();
- if(now-hidLastAt>100){hidBuffer='';hidStartedAt=now}
+ if(now-hidLastAt>90)hidBuffer='';
  hidLastAt=now;
- if(e.key==='Enter'){
-  const code=hidBuffer;hidBuffer='';
-  if(code.length>=4&&now-hidStartedAt<=1200&&(now-hidStartedAt)/Math.max(1,code.length)<=90&&!editable){
-   e.preventDefault();sendCode(code,'usb-bluetooth-hid');
+ if(event.key==='Enter'){
+  const value=hidBuffer;hidBuffer='';
+  const elapsed=now-hidStartAt;
+  if(value.length>=4&&elapsed<=1500&&elapsed/Math.max(1,value.length)<=90){
+   event.preventDefault();sendCode(value);
   }
   return;
  }
- if(e.key.length===1&&!editable){
-  if(!hidBuffer)hidStartedAt=now;
-  hidBuffer+=e.key;
+ if(event.key.length===1){
+  if(!hidBuffer)hidStartAt=now;
+  hidBuffer+=event.key;
   if(hidBuffer.length>128)hidBuffer=hidBuffer.slice(-128);
  }
 },true);
-document.getElementById('sendManual').addEventListener('click',()=>sendCode(document.getElementById('manual').value,'manual'));
-document.getElementById('manual').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendCode(e.currentTarget.value,'manual')}});
+window.addEventListener('message',event=>{
+ if(!allowedParent||event.origin!==parentOrigin||event.source!==window.opener)return;
+ const d=event.data;if(!d||typeof d!=='object'||d.nonce!==nonce)return;
+ if(d.type==='APOTEK_SCANNER_INIT'){parentReady=true;mode=d.mode==='product'?'product':'kasir';modeLabel.textContent=mode==='product'?'Mode: Tambah Produk':'Mode: Kasir';setStatus('Terhubung. Kamera dan scanner USB/Bluetooth HID siap. '+(multiScan?'Multi-scan aktif.':'Mode satu input.'))}
+ if(d.type==='APOTEK_SCANNER_CLOSE'){stopCamera();window.close()}
+});
+document.getElementById('sendManual').addEventListener('click',()=>sendCode(document.getElementById('manual').value));
+document.getElementById('manual').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendCode(e.currentTarget.value)}});
 document.getElementById('retry').addEventListener('click',startCamera);
 document.getElementById('flip').addEventListener('click',async()=>{if(cameras.length<2){setStatus('Perangkat hanya menyediakan satu kamera.');return}cameraIndex=(cameraIndex+1)%cameras.length;await startCamera()});
 document.getElementById('closeBtn').addEventListener('click',async()=>{await stopCamera();post('APOTEK_SCANNER_CLOSE');window.close()});
