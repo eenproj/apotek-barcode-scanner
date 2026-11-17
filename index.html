@@ -170,23 +170,52 @@ function sendCode(raw){
  try{const C=window.AudioContext||window.webkitAudioContext;if(C){const c=new C(),o=c.createOscillator(),g=c.createGain();o.frequency.value=1450;g.gain.value=.08;o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.1);o.onended=()=>c.close()}}catch(e){}
 }
 async function stopCamera(){if(qr){try{if(qr.isScanning)await qr.stop()}catch(e){}try{qr.clear()}catch(e){}qr=null}document.getElementById('reader').innerHTML=''}
+function isMobileScannerDevice(){
+ return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'');
+}
+function rearCameraIndex(list){
+ return list.findIndex(camera=>/back|rear|environment|belakang/i.test(camera.label||''));
+}
 async function startCamera(){
  await stopCamera();
  if(!window.isSecureContext){setStatus('Kamera memerlukan HTTPS. Pastikan halaman ini dibuka dari GitHub Pages.',true);return}
  if(!window.Html5Qrcode){setStatus('Library scanner gagal dimuat. Periksa koneksi internet, atau gunakan input manual.',true);return}
+ const scanConfig={fps:12,qrbox:(w,h)=>({width:Math.floor(Math.min(w*.82,420)),height:Math.floor(Math.min(h*.42,150))}),aspectRatio:1.777,disableFlip:false};
+ const onDecoded=decoded=>sendCode(decoded);
  try{
-  setStatus('Meminta izin kamera…');
-  cameras=await Html5Qrcode.getCameras();
-  if(!cameras.length){setStatus('Kamera tidak ditemukan. Gunakan input manual atau scanner USB/Bluetooth.',true);return}
-  cameraIndex=Math.min(cameraIndex,cameras.length-1);
+  setStatus(isMobileScannerDevice()?'Mengaktifkan kamera belakang…':'Meminta izin kamera…');
   qr=new Html5Qrcode('reader',{formatsToSupport:[
    Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,
    Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.CODE_39,
    Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,
    Html5QrcodeSupportedFormats.QR_CODE
   ],verbose:false});
-  await qr.start(cameras[cameraIndex].id,{fps:12,qrbox:(w,h)=>({width:Math.floor(Math.min(w*.82,420)),height:Math.floor(Math.min(h*.42,150))}),aspectRatio:1.777,disableFlip:false},decoded=>sendCode(decoded),()=>{});
-  setStatus('Kamera aktif — arahkan barcode ke bingkai. Mode multi-scan aktif.');
+
+  if(isMobileScannerDevice()){
+   // Utamakan kamera belakang melalui MediaTrackConstraints.
+   try{
+    await qr.start({facingMode:"environment"},scanConfig,onDecoded,()=>{});
+    cameras=await Html5Qrcode.getCameras().catch(()=>[]);
+    const rearIndex=rearCameraIndex(cameras);
+    if(rearIndex>=0)cameraIndex=rearIndex;
+    else cameraIndex=0;
+   }catch(rearError){
+    // Fallback untuk browser/perangkat yang tidak mendukung facingMode.
+    const rearName=String(rearError&&rearError.name||'');
+    if(rearName==='NotAllowedError'||/permission denied|notallowederror/i.test(String(rearError&&rearError.message||'')))throw rearError;
+    cameras=await Html5Qrcode.getCameras();
+    if(!cameras.length)throw rearError;
+    const rearIndex=rearCameraIndex(cameras);
+    cameraIndex=rearIndex>=0?rearIndex:Math.min(cameraIndex,cameras.length-1);
+    await qr.start(cameras[cameraIndex].id,scanConfig,onDecoded,()=>{});
+   }
+  }else{
+   cameras=await Html5Qrcode.getCameras();
+   if(!cameras.length){setStatus('Kamera tidak ditemukan. Gunakan input manual atau scanner USB/Bluetooth.',true);return}
+   cameraIndex=Math.min(cameraIndex,cameras.length-1);
+   await qr.start(cameras[cameraIndex].id,scanConfig,onDecoded,()=>{});
+  }
+  setStatus(isMobileScannerDevice()?'Kamera belakang aktif — arahkan barcode ke bingkai. Mode multi-scan aktif.':'Kamera aktif — arahkan barcode ke bingkai. Mode multi-scan aktif.');
  }catch(e){
   const n=String(e&&e.name||''),m=String(e&&e.message||e||'');
   let tip='Periksa izin kamera browser dan tutup aplikasi lain yang sedang memakai kamera.';
