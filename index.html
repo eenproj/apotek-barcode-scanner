@@ -192,7 +192,7 @@ const statusEl=mode==='product'?null:document.getElementById('status');
 const modeLabel=document.getElementById('modeLabel');
 const embedded=window.parent!==window;
 const parentWindow=embedded?window.parent:window.opener;
-let qr=null, cameras=[], cameraIndex=0, cameraSwitchRequested=false, lastCode='', lastAt=0, parentReady=false;
+let qr=null, cameras=[], cameraIndex=0, cameraSwitchRequested=false, cameraFacingMode='environment', lastCode='', lastAt=0, parentReady=false;
 const SCANNER_INPUT_ENGINE={buffer:'',lastAt:0,startAt:0,gapMs:120,maxLength:128};
 const SCAN_PROFILES={normal:{fps:12,box:.78,max:380,angleStep:2,engineFps:3},high:{fps:18,box:.86,max:480,angleStep:1,engineFps:5},ultra:{fps:24,box:.92,max:560,angleStep:1,engineFps:7}};
 let activeScanProfile='high';
@@ -359,7 +359,7 @@ async function startCamera(){
  const scanConfig={fps:profile.fps,qrbox:(w,h)=>({width:Math.floor(Math.min(w*profile.box,profile.max)),height:Math.floor(Math.min(h*.58,210))}),aspectRatio:1.777,disableFlip:false};
  const onDecoded=decoded=>sendCode(decoded);
  try{
-  setStatus(isMobileScannerDevice()?'Mengaktifkan kamera belakang…':'Meminta izin kamera…');
+  setStatus(isMobileScannerDevice()?(cameraFacingMode==='user'?'Mengaktifkan kamera depan…':'Mengaktifkan kamera belakang…'):'Meminta izin kamera…');
   qr=new Html5Qrcode('reader',{formatsToSupport:[
    Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,
    Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.CODE_39,
@@ -372,27 +372,44 @@ async function startCamera(){
    // Jangan kembali memakai facingMode:environment karena itu akan selalu
    // memilih kamera belakang dan mengabaikan pilihan kamera pengguna.
    if(cameraSwitchRequested){
-    cameras=await Html5Qrcode.getCameras();
-    if(!cameras.length)throw new Error('Daftar kamera tidak tersedia. Muat ulang izin kamera lalu coba lagi.');
-    cameraIndex=((cameraIndex%cameras.length)+cameras.length)%cameras.length;
-    await qr.start(cameras[cameraIndex].id,scanConfig,onDecoded,()=>{});
+    // Pada Android/iOS, enumerateDevices() kadang hanya menampilkan satu
+    // deviceId walaupun kamera depan dan belakang tersedia. Karena itu,
+    // pergantian kamera mobile dilakukan melalui constraint facingMode.
+    const requestedMode=cameraFacingMode;
+    try{
+     await qr.start({facingMode:{exact:requestedMode}},scanConfig,onDecoded,()=>{});
+    }catch(exactError){
+     try{
+      await qr.start({facingMode:requestedMode},scanConfig,onDecoded,()=>{});
+     }catch(modeError){
+      // Fallback terakhir: gunakan daftar deviceId jika browser tidak
+      // mendukung pemilihan kamera melalui facingMode.
+      cameras=await Html5Qrcode.getCameras().catch(()=>[]);
+      if(!cameras.length)throw modeError;
+      const targetRegex=requestedMode==='user'?/front|user|depan|facetime/i:/back|rear|environment|belakang/i;
+      let targetIndex=cameras.findIndex(c=>targetRegex.test(c.label||''));
+      if(targetIndex<0)targetIndex=requestedMode==='environment'?rearCameraIndex(cameras):0;
+      if(targetIndex<0)targetIndex=0;
+      cameraIndex=targetIndex;
+      await qr.start(cameras[cameraIndex].id,scanConfig,onDecoded,()=>{});
+     }
+    }
     cameraSwitchRequested=false;
    }else{
     // Saat pembukaan pertama, utamakan kamera belakang melalui facingMode.
     try{
-     await qr.start({facingMode:"environment"},scanConfig,onDecoded,()=>{});
+     await qr.start({facingMode:cameraFacingMode},scanConfig,onDecoded,()=>{});
      cameras=await Html5Qrcode.getCameras().catch(()=>[]);
-     const rearIndex=rearCameraIndex(cameras);
-     if(rearIndex>=0)cameraIndex=rearIndex;
-     else cameraIndex=0;
+     const preferredIndex=cameraFacingMode==='user'?cameras.findIndex(c=>/front|user|depan|facetime/i.test(c.label||'')):rearCameraIndex(cameras);
+     cameraIndex=preferredIndex>=0?preferredIndex:0;
     }catch(rearError){
      // Fallback untuk browser/perangkat yang tidak mendukung facingMode.
      const rearName=String(rearError&&rearError.name||'');
      if(rearName==='NotAllowedError'||/permission denied|notallowederror/i.test(String(rearError&&rearError.message||'')))throw rearError;
      cameras=await Html5Qrcode.getCameras();
      if(!cameras.length)throw rearError;
-     const rearIndex=rearCameraIndex(cameras);
-     cameraIndex=rearIndex>=0?rearIndex:Math.min(cameraIndex,cameras.length-1);
+     const preferredIndex=cameraFacingMode==='user'?cameras.findIndex(c=>/front|user|depan|facetime/i.test(c.label||'')):rearCameraIndex(cameras);
+     cameraIndex=preferredIndex>=0?preferredIndex:Math.min(cameraIndex,cameras.length-1);
      await qr.start(cameras[cameraIndex].id,scanConfig,onDecoded,()=>{});
     }
    }
@@ -405,8 +422,9 @@ async function startCamera(){
   await applyCameraEnhancements_();
   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
   await startMultiAngleEngine_();
-  setStatus((isMobileScannerDevice()?'Kamera belakang aktif':'Kamera aktif')+' — sensitivitas '+activeScanProfile.toUpperCase()+'. Automatic Barcode Engine siap.');
+  setStatus((isMobileScannerDevice()?(cameraFacingMode==='user'?'Kamera depan aktif':'Kamera belakang aktif'):'Kamera aktif')+' — sensitivitas '+activeScanProfile.toUpperCase()+'. Automatic Barcode Engine siap.');
   post('APOTEK_SCANNER_ENGINE_STATUS',getBarcodeEngineDiagnostics_());
+  return true;
  }catch(e){
   const n=String(e&&e.name||''),m=String(e&&e.message||e||'');
   let tip='Periksa izin kamera browser dan tutup aplikasi lain yang sedang memakai kamera.';
@@ -414,6 +432,7 @@ async function startCamera(){
   else if(n==='NotFoundError')tip='Kamera tidak ditemukan. Gunakan input manual atau scanner USB/Bluetooth.';
   else if(n==='NotReadableError')tip='Kamera sedang dipakai aplikasi lain. Tutup aplikasi tersebut lalu coba lagi.';
   setStatus(tip+' Detail: '+n+' '+m,true);
+  return false;
  }
 }
 
@@ -552,7 +571,22 @@ document.getElementById('scannerInfoClose')?.addEventListener('click',closeScann
 scannerInfoDialog?.addEventListener('click',e=>{if(e.target===scannerInfoDialog)closeScannerInfo_();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeScannerInfo_();});
 document.getElementById('scanSensitivity')?.addEventListener('change',e=>setScanSensitivity_(e.target.value));
-document.getElementById('flip').addEventListener('click',async()=>{if(cameras.length<2){setStatus('Perangkat hanya menyediakan satu kamera.');return}cameraIndex=(cameraIndex+1)%cameras.length;cameraSwitchRequested=true;setStatus('Mengganti kamera…');await startCamera()});
+document.getElementById('flip').addEventListener('click',async()=>{
+ const mobile=isMobileScannerDevice();
+ if(mobile){
+  // Selalu coba beralih antara kamera belakang dan depan. Jangan bergantung
+  // pada jumlah deviceId yang dilaporkan enumerateDevices/getCameras.
+  cameraFacingMode=cameraFacingMode==='environment'?'user':'environment';
+  cameraSwitchRequested=true;
+  setStatus(cameraFacingMode==='user'?'Mengaktifkan kamera depan…':'Mengaktifkan kamera belakang…');
+  const switched=await startCamera();
+  if(!switched){cameraFacingMode=cameraFacingMode==='user'?'environment':'user';cameraSwitchRequested=true;await startCamera();}
+  return;
+ }
+ cameras=await Html5Qrcode.getCameras().catch(()=>cameras);
+ if(cameras.length<2){setStatus('Browser hanya melaporkan satu kamera yang dapat diakses.');return}
+ cameraIndex=(cameraIndex+1)%cameras.length;cameraSwitchRequested=true;setStatus('Mengganti kamera…');await startCamera();
+});
 document.getElementById('closeBtn').addEventListener('click',async()=>{
  await stopCamera();
  post('APOTEK_SCANNER_CLOSE');
