@@ -110,11 +110,14 @@ body.product-mode #status,body.product-mode .scanner-camera-column>.row:first-of
  .scanner-camera-column>.row:last-child button{padding:10px 11px;font-size:13px}
 }
 
+
+#hidScannerMonitor{display:flex;align-items:center;gap:8px;margin:0 0 12px;padding:9px 11px;border:1px solid #dbe4ee;border-radius:10px;background:#f8fafc;color:#334155;font-size:12px}#hidScannerMonitor .hid-dot{width:8px;height:8px;border-radius:50%;background:#94a3b8;flex:0 0 8px}#hidScannerMonitor[data-state="ready"] .hid-dot{background:#059669}#hidScannerMonitor[data-state="scanning"] .hid-dot{background:#0284c7}#hidScannerMonitor strong{font-weight:750}
 </style>
 </head>
 <body>
 <main><section class="card">
 <header><div><h1>▦ Scanner Barcode Apotek</h1><p id="modeLabel">Menghubungkan ke aplikasi…</p></div><button id="closeBtn" type="button">Tutup</button></header>
+<div id="hidScannerMonitor" data-state="unknown" role="status" aria-live="polite"><span class="hid-dot"></span><span><strong>USB / Bluetooth Scanner:</strong> Belum ada input HID yang terdeteksi. Browser tidak dapat memastikan koneksi fisik.</span></div>
 <div class="scanner-workspace">
  <div class="scanner-camera-column">
   <div class="stage"><div id="reader"></div><div class="frame"><div class="laser"></div></div></div>
@@ -171,16 +174,26 @@ if(mode==='product'){
 }
 
 function setStatus(text,isError=false){if(statusEl){statusEl.textContent=text;statusEl.className='status'+(isError?' error':'')}else if(modeLabel){modeLabel.textContent=String(text);modeLabel.classList.toggle('error',!!isError)}}
+let hidMonitorIdleTimer=null;
+function setHidMonitor_(state,detail){
+ const el=document.getElementById('hidScannerMonitor');if(!el)return;el.dataset.state=state;
+ const title=state==='scanning'?'Input barcode sedang diterima':state==='ready'?'Input HID terdeteksi':'Belum ada input HID';
+ el.querySelector('span:last-child').innerHTML='<strong>USB / Bluetooth Scanner:</strong> '+title+(detail?' · '+detail:'');
+ post('APOTEK_SCANNER_MONITOR',{state,detail:detail||title});
+ if(hidMonitorIdleTimer)clearTimeout(hidMonitorIdleTimer);
+ if(state!=='unknown')hidMonitorIdleTimer=setTimeout(()=>setHidMonitor_('unknown','Tidak ada aktivitas selama 60 detik; koneksi fisik tidak dapat dipastikan'),61000);
+}
 function post(type,extra){
  if(!allowedParent||!parentWindow)return;
  if(!embedded&&parentWindow.closed)return;
  try{parentWindow.postMessage(Object.assign({type,nonce},extra||{}),parentOrigin)}catch(e){}
 }
 function norm(v){return String(v||'').trim().replace(/\s+/g,'').toUpperCase()}
-function sendCode(raw){
+function sendCode(raw,source='manual'){
  const code=norm(raw);if(!code)return;
  const now=Date.now();if(code===lastCode&&now-lastAt<1000)return;lastCode=code;lastAt=now;
  if(!parentReady){setStatus('Belum terhubung dengan aplikasi utama. Tutup scanner lalu buka kembali dari tombol Scan Kamera.',true);return}
+ if(source==='hid')setHidMonitor_('ready','Barcode HID berhasil dikenali');
  post('APOTEK_SCANNER_RESULT',{barcode:code});
  const manualInput=document.getElementById('manual');if(manualInput)manualInput.value=code;
  if(mode==='product'){
@@ -348,7 +361,7 @@ window.addEventListener('keydown',function(e){
   const code=SCANNER_INPUT_ENGINE.buffer;SCANNER_INPUT_ENGINE.buffer='';
   if(code.length>=4){
    const elapsed=now-SCANNER_INPUT_ENGINE.startAt;
-   if(elapsed<=1800&&elapsed/Math.max(1,code.length)<=SCANNER_INPUT_ENGINE.gapMs)sendCode(code);
+   if(elapsed<=1800&&elapsed/Math.max(1,code.length)<=SCANNER_INPUT_ENGINE.gapMs){setHidMonitor_('scanning','Pola input scanner dikenali');sendCode(code,'hid');}
   }
   return;
  }
