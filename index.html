@@ -301,10 +301,18 @@ function setHidMonitor_(state,detail){
  if(state!=='unknown')hidMonitorIdleTimer=setTimeout(()=>setHidMonitor_('unknown','Tidak ada aktivitas selama 60 detik; koneksi fisik tidak dapat dipastikan'),61000);
 }
 function post(type,extra){
+ // Jangan memakai parentWindow.closed sebagai penentu koneksi.
+ // Pada beberapa browser mobile, properti WindowProxy.closed dapat tidak akurat
+ // setelah tab induk disuspensi / dipulihkan. Uji pengiriman melalui postMessage
+ // dan tunggu ACK dari halaman induk untuk memastikan pesan benar-benar diterima.
  if(!allowedParent||!parentWindow)return false;
- if(!embedded&&parentWindow.closed)return false;
- try{parentWindow.postMessage(Object.assign({type,nonce},extra||{}),parentOrigin);return true}
- catch(e){console.error('[Barcode Bridge] postMessage gagal:',e);return false}
+ try{
+  parentWindow.postMessage(Object.assign({type,nonce},extra||{}),parentOrigin);
+  return true;
+ }catch(e){
+  console.error('[Barcode Bridge] postMessage gagal:',e);
+  return false;
+ }
 }
 function norm(v){return String(v||'').trim().replace(/\s+/g,'').toUpperCase()}
 function sendCode(raw,source='manual'){
@@ -739,6 +747,7 @@ document.getElementById('closeBtn').addEventListener('click',async()=>{
 window.addEventListener('beforeunload',()=>{try{if(qr&&qr.isScanning)qr.stop()}catch(e){}post('APOTEK_SCANNER_CLOSE')});
 if(!nonce||!allowedParent||!parentWindow){
  setCameraActiveLabel_('Koneksi scanner tidak valid');
+ setProductSaveStatus('Koneksi ke tab aplikasi utama tidak tersedia. Pastikan scanner dibuka melalui tombol di aplikasi Apotek.', 'error');
  setStatus('Buka halaman scanner melalui tombol Barcode Scanner di aplikasi Apotek. Jangan membuka URL ini secara langsung.',true);
  document.getElementById('retry').disabled=true;
  document.getElementById('sendManual').disabled=true;
