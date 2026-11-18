@@ -192,7 +192,7 @@ const statusEl=mode==='product'?null:document.getElementById('status');
 const modeLabel=document.getElementById('modeLabel');
 const embedded=window.parent!==window;
 const parentWindow=embedded?window.parent:window.opener;
-let qr=null, cameras=[], cameraIndex=0, lastCode='', lastAt=0, parentReady=false;
+let qr=null, cameras=[], cameraIndex=0, cameraSwitchRequested=false, lastCode='', lastAt=0, parentReady=false;
 const SCANNER_INPUT_ENGINE={buffer:'',lastAt:0,startAt:0,gapMs:120,maxLength:128};
 const SCAN_PROFILES={normal:{fps:12,box:.78,max:380,angleStep:2,engineFps:3},high:{fps:18,box:.86,max:480,angleStep:1,engineFps:5},ultra:{fps:24,box:.92,max:560,angleStep:1,engineFps:7}};
 let activeScanProfile='high';
@@ -368,22 +368,33 @@ async function startCamera(){
   ],verbose:false});
 
   if(isMobileScannerDevice()){
-   // Utamakan kamera belakang melalui MediaTrackConstraints.
-   try{
-    await qr.start({facingMode:"environment"},scanConfig,onDecoded,()=>{});
-    cameras=await Html5Qrcode.getCameras().catch(()=>[]);
-    const rearIndex=rearCameraIndex(cameras);
-    if(rearIndex>=0)cameraIndex=rearIndex;
-    else cameraIndex=0;
-   }catch(rearError){
-    // Fallback untuk browser/perangkat yang tidak mendukung facingMode.
-    const rearName=String(rearError&&rearError.name||'');
-    if(rearName==='NotAllowedError'||/permission denied|notallowederror/i.test(String(rearError&&rearError.message||'')))throw rearError;
+   // Setelah tombol Ganti Kamera ditekan, gunakan deviceId secara eksplisit.
+   // Jangan kembali memakai facingMode:environment karena itu akan selalu
+   // memilih kamera belakang dan mengabaikan pilihan kamera pengguna.
+   if(cameraSwitchRequested){
     cameras=await Html5Qrcode.getCameras();
-    if(!cameras.length)throw rearError;
-    const rearIndex=rearCameraIndex(cameras);
-    cameraIndex=rearIndex>=0?rearIndex:Math.min(cameraIndex,cameras.length-1);
+    if(!cameras.length)throw new Error('Daftar kamera tidak tersedia. Muat ulang izin kamera lalu coba lagi.');
+    cameraIndex=((cameraIndex%cameras.length)+cameras.length)%cameras.length;
     await qr.start(cameras[cameraIndex].id,scanConfig,onDecoded,()=>{});
+    cameraSwitchRequested=false;
+   }else{
+    // Saat pembukaan pertama, utamakan kamera belakang melalui facingMode.
+    try{
+     await qr.start({facingMode:"environment"},scanConfig,onDecoded,()=>{});
+     cameras=await Html5Qrcode.getCameras().catch(()=>[]);
+     const rearIndex=rearCameraIndex(cameras);
+     if(rearIndex>=0)cameraIndex=rearIndex;
+     else cameraIndex=0;
+    }catch(rearError){
+     // Fallback untuk browser/perangkat yang tidak mendukung facingMode.
+     const rearName=String(rearError&&rearError.name||'');
+     if(rearName==='NotAllowedError'||/permission denied|notallowederror/i.test(String(rearError&&rearError.message||'')))throw rearError;
+     cameras=await Html5Qrcode.getCameras();
+     if(!cameras.length)throw rearError;
+     const rearIndex=rearCameraIndex(cameras);
+     cameraIndex=rearIndex>=0?rearIndex:Math.min(cameraIndex,cameras.length-1);
+     await qr.start(cameras[cameraIndex].id,scanConfig,onDecoded,()=>{});
+    }
    }
   }else{
    cameras=await Html5Qrcode.getCameras();
@@ -541,7 +552,7 @@ document.getElementById('scannerInfoClose')?.addEventListener('click',closeScann
 scannerInfoDialog?.addEventListener('click',e=>{if(e.target===scannerInfoDialog)closeScannerInfo_();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeScannerInfo_();});
 document.getElementById('scanSensitivity')?.addEventListener('change',e=>setScanSensitivity_(e.target.value));
-document.getElementById('flip').addEventListener('click',async()=>{if(cameras.length<2){setStatus('Perangkat hanya menyediakan satu kamera.');return}cameraIndex=(cameraIndex+1)%cameras.length;await startCamera()});
+document.getElementById('flip').addEventListener('click',async()=>{if(cameras.length<2){setStatus('Perangkat hanya menyediakan satu kamera.');return}cameraIndex=(cameraIndex+1)%cameras.length;cameraSwitchRequested=true;setStatus('Mengganti kamera…');await startCamera()});
 document.getElementById('closeBtn').addEventListener('click',async()=>{
  await stopCamera();
  post('APOTEK_SCANNER_CLOSE');
