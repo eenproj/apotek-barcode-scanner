@@ -558,7 +558,16 @@ async function startCamera(){
  }catch(e){
   const n=String(e&&e.name||''),m=String(e&&e.message||e||'');
   let tip='Periksa izin kamera browser dan tutup aplikasi lain yang sedang memakai kamera.';
-  if(n==='NotAllowedError'||/permission denied|notallowederror/i.test(m))tip='Izin kamera ditolak. Klik ikon pengaturan situs di alamat GitHub Pages, ubah Kamera menjadi Izinkan, lalu coba lagi.';
+  if(n==='NotAllowedError'||/permission denied|notallowederror/i.test(m)){
+   const policy=document.permissionsPolicy||document.featurePolicy;
+   let cameraPolicyAllowed=null;
+   try{if(policy&&typeof policy.allowsFeature==='function')cameraPolicyAllowed=policy.allowsFeature('camera')}catch(_e){}
+   let permissionState='unknown';
+   try{if(navigator.permissions&&navigator.permissions.query){const permission=await navigator.permissions.query({name:'camera'});permissionState=permission.state}}catch(_e){}
+   if(cameraPolicyAllowed===false)tip='Akses kamera diblokir oleh Permissions Policy halaman induk. Buka scanner langsung pada tab GitHub Pages, bukan di dalam iframe.';
+   else if(permissionState==='denied')tip='Izin kamera untuk situs GitHub Pages berstatus Ditolak. Buka pengaturan situs pada alamat GitHub Pages, ubah Kamera menjadi Izinkan, lalu muat ulang halaman.';
+   else tip='Browser menolak permintaan kamera (izin situs, kebijakan iframe, atau pembatasan perangkat). Pastikan scanner dibuka langsung pada tab GitHub Pages, izinkan Kamera pada pengaturan situs, lalu muat ulang.';
+  }
   else if(n==='NotFoundError')tip='Kamera tidak ditemukan. Gunakan input manual atau scanner USB/Bluetooth.';
   else if(n==='NotReadableError')tip='Kamera sedang dipakai aplikasi lain. Tutup aplikasi tersebut lalu coba lagi.';
   setCameraActiveLabel_('Kamera tidak aktif');
