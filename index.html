@@ -111,19 +111,46 @@ body.product-mode #status,body.product-mode .scanner-camera-column>.row:first-of
 }
 
 
-#hidScannerMonitor{display:flex;align-items:center;gap:8px;margin:0 0 12px;padding:9px 11px;border:1px solid #dbe4ee;border-radius:10px;background:#f8fafc;color:#334155;font-size:12px}#hidScannerMonitor .hid-dot{width:8px;height:8px;border-radius:50%;background:#94a3b8;flex:0 0 8px}#hidScannerMonitor[data-state="ready"] .hid-dot{background:#059669}#hidScannerMonitor[data-state="scanning"] .hid-dot{background:#0284c7}#hidScannerMonitor strong{font-weight:750}
+
+.scanner-control-row{display:flex;flex-wrap:nowrap;align-items:center;gap:7px;width:100%;margin-top:9px!important}
+.scanner-control-row .scanner-icon-btn{flex:0 0 40px;width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;padding:0;border:1px solid #cbd5e1;background:#fff;color:#0f766e;border-radius:10px}
+.scanner-control-row .scanner-icon-btn svg{width:19px;height:19px;display:block}
+.scanner-control-row #scanSensitivity{flex:1 1 0;min-width:0;max-width:none;width:100%;height:40px;padding:7px 9px;font-size:13px}
+.scanner-control-row .scanner-info-btn{color:#2563eb}
+.scanner-info-dialog{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.58)}
+.scanner-info-dialog.is-open{display:flex}
+.scanner-info-panel{width:min(520px,100%);max-height:min(80vh,680px);overflow:auto;background:#fff;border:1px solid #dbe4ee;border-radius:16px;padding:18px;box-shadow:0 24px 70px #0f172a40}
+.scanner-info-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.scanner-info-head h2{font-size:17px;margin:0;color:#0f172a}
+.scanner-info-close{width:34px;height:34px;padding:0;border-radius:9px;font-size:20px;line-height:1}
+.scanner-info-item{padding:11px 0;border-top:1px solid #e8eef5}
+.scanner-info-item strong{display:block;font-size:13px;color:#0f172a;margin-bottom:4px}
+.scanner-info-item p{font-size:12px;line-height:1.55;margin:0;color:#475569;overflow-wrap:anywhere}
+@media(max-width:520px){.scanner-control-row{gap:6px}.scanner-control-row .scanner-icon-btn{flex-basis:38px;width:38px;height:38px}.scanner-control-row #scanSensitivity{font-size:12px;padding:6px}.scanner-info-panel{padding:14px}}
 </style>
 </head>
 <body>
 <main><section class="card">
 <header><div><h1>▦ Scanner Barcode Apotek</h1><p id="modeLabel">Menghubungkan ke aplikasi…</p></div><button id="closeBtn" type="button">Tutup</button></header>
-<div id="hidScannerMonitor" data-state="unknown" role="status" aria-live="polite"><span class="hid-dot"></span><span><strong>USB / Bluetooth Scanner:</strong> Belum ada input HID yang terdeteksi. Browser tidak dapat memastikan koneksi fisik.</span></div>
 <div class="scanner-workspace">
  <div class="scanner-camera-column">
   <div class="stage"><div id="reader"></div><div class="frame"><div class="laser"></div></div></div>
   <div id="status" class="status" role="status" aria-live="polite">Menyiapkan scanner…</div>
   <div class="row"><input id="manual" class="field" autocomplete="off" inputmode="text" placeholder="Atau masukkan barcode manual"><button id="sendManual" class="primary" type="button">Kirim barcode</button></div>
-  <div class="row" style="margin-top:9px"><button id="retry" type="button">↻ Coba kamera lagi</button><button id="flip" type="button">Ganti kamera</button><select id="scanSensitivity" class="field" aria-label="Sensitivitas pemindaian" style="flex:1;min-width:130px;max-width:190px"><option value="normal">Normal</option><option value="high" selected>Tinggi</option><option value="ultra">Ultra</option></select></div><div class="hint" id="cameraCapabilityHint">Automatic Barcode Engine akan memilih decoder terbaik berdasarkan dukungan browser dan format barcode. Decoder alternatif tetap disiapkan sebagai fallback.</div><div class="hint" id="barcodeEngineStatus" role="status" aria-live="polite" style="margin-top:6px;padding:8px 10px;border:1px solid #dbe4ee;border-radius:9px;background:#f8fafc"><strong>Barcode Engine:</strong> Mendeteksi kemampuan browser…</div>
+  <div class="scanner-control-row">
+   <button id="retry" class="scanner-icon-btn" type="button" aria-label="Coba kamera lagi" title="Coba kamera lagi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5"/><path d="M19 12a7 7 0 1 1-2-5l3 5"/></svg></button>
+   <button id="flip" class="scanner-icon-btn" type="button" aria-label="Ganti kamera" title="Ganti kamera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h13l-3-3"/><path d="M20 7l-3 3"/><path d="M17 17H4l3 3"/><path d="M4 17l3-3"/></svg></button>
+   <select id="scanSensitivity" class="field" aria-label="Sensitivitas pemindaian"><option value="normal">Normal</option><option value="high" selected>Tinggi</option><option value="ultra">Ultra</option></select>
+   <button id="scannerInfoBtn" class="scanner-icon-btn scanner-info-btn" type="button" aria-label="Informasi scanner" title="Informasi scanner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg></button>
+  </div>
+ </div>
+ <div id="scannerInfoDialog" class="scanner-info-dialog" role="dialog" aria-modal="true" aria-labelledby="scannerInfoTitle" aria-hidden="true">
+  <div class="scanner-info-panel">
+   <div class="scanner-info-head"><h2 id="scannerInfoTitle">Informasi Scanner</h2><button id="scannerInfoClose" class="scanner-info-close" type="button" aria-label="Tutup informasi">×</button></div>
+   <div class="scanner-info-item"><strong>USB / Bluetooth Scanner</strong><p id="scannerInfoHid">Belum ada input HID yang terdeteksi. Browser tidak dapat memastikan koneksi fisik.</p></div>
+   <div class="scanner-info-item"><strong>Kemampuan Kamera & Decoder</strong><p id="scannerInfoCapability">Automatic Barcode Engine akan memilih decoder terbaik berdasarkan dukungan browser dan format barcode. Decoder alternatif tetap disiapkan sebagai fallback.</p></div>
+   <div class="scanner-info-item"><strong>Status Barcode Engine</strong><p id="scannerInfoEngine">Mendeteksi kemampuan browser…</p></div>
+  </div>
  </div>
  <section id="productEntryCard" class="product-entry-card" hidden>
  <div class="product-entry-heading"><div><h2>Form Tambah Produk</h2><p>Lengkapi data produk. Setelah disimpan, formulir siap untuk produk berikutnya tanpa menutup kamera.</p></div><span class="product-entry-count" id="productSavedCount">0 tersimpan</span></div>
@@ -177,10 +204,19 @@ if(mode==='product'){
 
 function setStatus(text,isError=false){if(statusEl){statusEl.textContent=text;statusEl.className='status'+(isError?' error':'')}else if(modeLabel){modeLabel.textContent=String(text);modeLabel.classList.toggle('error',!!isError)}}
 let hidMonitorIdleTimer=null;
+const scannerInfoState={
+ hid:'Belum ada input HID yang terdeteksi. Browser tidak dapat memastikan koneksi fisik.',
+ capability:'Automatic Barcode Engine akan memilih decoder terbaik berdasarkan dukungan browser dan format barcode. Decoder alternatif tetap disiapkan sebagai fallback.',
+ engine:'Mendeteksi kemampuan browser…'
+};
+function renderScannerInfo_(){
+ const hid=document.getElementById('scannerInfoHid'),cap=document.getElementById('scannerInfoCapability'),engine=document.getElementById('scannerInfoEngine');
+ if(hid)hid.textContent=scannerInfoState.hid;if(cap)cap.textContent=scannerInfoState.capability;if(engine)engine.textContent=scannerInfoState.engine;
+}
+function setScannerCapabilityInfo_(message){scannerInfoState.capability=String(message||'');renderScannerInfo_();}
 function setHidMonitor_(state,detail){
- const el=document.getElementById('hidScannerMonitor');if(!el)return;el.dataset.state=state;
  const title=state==='scanning'?'Input barcode sedang diterima':state==='ready'?'Input HID terdeteksi':'Belum ada input HID';
- el.querySelector('span:last-child').innerHTML='<strong>USB / Bluetooth Scanner:</strong> '+title+(detail?' · '+detail:'');
+ scannerInfoState.hid='USB / Bluetooth Scanner: '+title+(detail?' · '+detail:'');renderScannerInfo_();
  post('APOTEK_SCANNER_MONITOR',{state,detail:detail||title});
  if(hidMonitorIdleTimer)clearTimeout(hidMonitorIdleTimer);
  if(state!=='unknown')hidMonitorIdleTimer=setTimeout(()=>setHidMonitor_('unknown','Tidak ada aktivitas selama 60 detik; koneksi fisik tidak dapat dipastikan'),61000);
@@ -213,7 +249,6 @@ function rearCameraIndex(list){
  return list.findIndex(camera=>/back|rear|environment|belakang/i.test(camera.label||''));
 }
 async function applyCameraEnhancements_(){
- const hint=document.getElementById('cameraCapabilityHint');
  if(!qr)return;
  try{
   const caps=typeof qr.getRunningTrackCapabilities==='function'?qr.getRunningTrackCapabilities():null;
@@ -221,25 +256,20 @@ async function applyCameraEnhancements_(){
   if(caps&&caps.focusMode&&Array.isArray(caps.focusMode)&&caps.focusMode.includes('continuous'))advanced.push({focusMode:'continuous'});
   if(caps&&caps.exposureMode&&Array.isArray(caps.exposureMode)&&caps.exposureMode.includes('continuous'))advanced.push({exposureMode:'continuous'});
   if(advanced.length&&typeof qr.applyVideoConstraints==='function')await qr.applyVideoConstraints({advanced});
-  if(hint)hint.textContent='Kamera aktif. Autofocus/exposure otomatis diterapkan jika didukung perangkat.';
- }catch(e){if(hint)hint.textContent='Kamera aktif. Sebagian kontrol fokus/exposure tidak tersedia pada perangkat ini.';}
+  setScannerCapabilityInfo_('Kamera aktif. Autofocus/exposure otomatis diterapkan jika didukung perangkat.');
+ }catch(e){setScannerCapabilityInfo_('Kamera aktif. Sebagian kontrol fokus/exposure tidak tersedia pada perangkat ini.');}
 }
 // Multi-Angle Barcode Detection & Perspective Correction Engine.
 // Native BarcodeDetector is an enhancement layer; html5-qrcode remains the compatibility fallback.
 function updateBarcodeEngineStatus_(message,state='info'){
- const el=document.getElementById('barcodeEngineStatus');if(!el)return;
- el.dataset.state=state;
- const color=state==='success'?'#047857':state==='warning'?'#b45309':state==='error'?'#b91c1c':'#334155';
- el.style.color=color;
- el.innerHTML='<strong>Barcode Engine:</strong> '+message;
+ scannerInfoState.engine=String(message||'');renderScannerInfo_();
 }
 function selectFallbackEngine_(reason){
  barcodeEngineSelection.mode='html5-qrcode-fallback';
  barcodeEngineSelection.nativeAvailable=false;
  stopMultiAngleEngine_();
  updateBarcodeEngineStatus_('HTML5 QR Code Decoder aktif sebagai fallback. '+reason,'warning');
- const hint=document.getElementById('cameraCapabilityHint');
- if(hint)hint.textContent='Mode kompatibilitas: pemindaian kamera menggunakan JavaScript decoder. Multi-angle native tidak tersedia pada browser/perangkat ini.';
+ setScannerCapabilityInfo_('Mode kompatibilitas: pemindaian kamera menggunakan JavaScript decoder. Multi-angle native tidak tersedia pada browser/perangkat ini.');
 }
 function getBarcodeEngineDiagnostics_(){
  return {mode:barcodeEngineSelection.mode,nativeAvailable:barcodeEngineSelection.nativeAvailable,nativeFormats:barcodeEngineSelection.nativeFormats.slice(),fallback:barcodeEngineSelection.fallback,nativeErrors:barcodeEngineSelection.nativeErrors};
@@ -286,7 +316,6 @@ async function runMultiAngleFrame_(){
 async function startMultiAngleEngine_(){
  stopMultiAngleEngine_();
  barcodeEngineSelection.nativeErrors=0;
- const hint=document.getElementById('cameraCapabilityHint');
  // html5-qrcode is started first and remains available as the cross-browser JavaScript fallback.
  if(!window.Html5Qrcode){updateBarcodeEngineStatus_('Library fallback tidak berhasil dimuat. Periksa koneksi internet.','error');return;}
  if(typeof window.BarcodeDetector!=='function'){
@@ -309,7 +338,7 @@ async function startMultiAngleEngine_(){
   barcodeEngineSelection.nativeAvailable=true;
   barcodeEngineSelection.nativeFormats=formats;
   angleEngine.raf=requestAnimationFrame(runMultiAngleFrame_);
-  if(hint)hint.textContent='Automatic Engine memilih Native BarcodeDetector untuk deteksi multi-sudut dan koreksi perspektif. HTML5 JavaScript Decoder tetap siaga sebagai fallback.';
+  setScannerCapabilityInfo_('Automatic Engine memilih Native BarcodeDetector untuk deteksi multi-sudut dan koreksi perspektif. HTML5 JavaScript Decoder tetap siaga sebagai fallback.');
   updateBarcodeEngineStatus_('Native BarcodeDetector aktif · '+formats.join(', ')+' · HTML5 decoder siaga sebagai fallback.','success');
  }catch(e){
   selectFallbackEngine_('Native decoder tidak kompatibel: '+String(e&&e.message||e));
@@ -319,8 +348,7 @@ function stopMultiAngleEngine_(){angleEngine.active=false;if(angleEngine.raf)can
 
 function setScanSensitivity_(value){
  activeScanProfile=SCAN_PROFILES[value]?value:'high';
- const hint=document.getElementById('cameraCapabilityHint');
- if(hint)hint.textContent='Sensitivitas '+activeScanProfile.toUpperCase()+' dipilih. Automatic Engine menyesuaikan kecepatan pemindaian; decoder native dan fallback dipilih sesuai dukungan perangkat.';
+ setScannerCapabilityInfo_('Sensitivitas '+activeScanProfile.toUpperCase()+' dipilih. Automatic Engine menyesuaikan kecepatan pemindaian; decoder native dan fallback dipilih sesuai dukungan perangkat.');
  if(qr&&qr.isScanning){startCamera();}
 }
 async function startCamera(){
@@ -505,6 +533,13 @@ window.addEventListener('message',event=>{
 const sendManualBtn=document.getElementById('sendManual');if(sendManualBtn)sendManualBtn.addEventListener('click',()=>sendCode(document.getElementById('manual')?.value||''));
 document.getElementById('manual')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendCode(e.currentTarget.value)}});
 document.getElementById('retry').addEventListener('click',startCamera);
+const scannerInfoDialog=document.getElementById('scannerInfoDialog');
+renderScannerInfo_();
+function closeScannerInfo_(){if(!scannerInfoDialog)return;scannerInfoDialog.classList.remove('is-open');scannerInfoDialog.setAttribute('aria-hidden','true');}
+document.getElementById('scannerInfoBtn')?.addEventListener('click',()=>{renderScannerInfo_();scannerInfoDialog?.classList.add('is-open');scannerInfoDialog?.setAttribute('aria-hidden','false');});
+document.getElementById('scannerInfoClose')?.addEventListener('click',closeScannerInfo_);
+scannerInfoDialog?.addEventListener('click',e=>{if(e.target===scannerInfoDialog)closeScannerInfo_();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeScannerInfo_();});
 document.getElementById('scanSensitivity')?.addEventListener('change',e=>setScanSensitivity_(e.target.value));
 document.getElementById('flip').addEventListener('click',async()=>{if(cameras.length<2){setStatus('Perangkat hanya menyediakan satu kamera.');return}cameraIndex=(cameraIndex+1)%cameras.length;await startCamera()});
 document.getElementById('closeBtn').addEventListener('click',async()=>{
