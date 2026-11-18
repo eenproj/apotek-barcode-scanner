@@ -262,6 +262,7 @@ const productSaveStatusEl=document.getElementById('productSaveStatus');
 const liveStatusEl=document.getElementById('scannerLiveStatus');
 const embedded=window.parent!==window;
 const parentWindow=embedded?window.parent:window.opener;
+if(embedded)document.documentElement.classList.add('apotek-scanner-embedded');
 let qr=null, cameras=[], cameraIndex=0, cameraSwitchRequested=false, cameraFacingMode='environment', lastCode='', lastAt=0, parentReady=false;
 let productSaveRequestId='', productSaveAckTimer=null, productSaveResultTimer=null;
 const SCANNER_INPUT_ENGINE={buffer:'',lastAt:0,startAt:0,gapMs:120,maxLength:128};
