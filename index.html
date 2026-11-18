@@ -123,7 +123,7 @@ body.product-mode #status,body.product-mode .scanner-camera-column>.row:first-of
   <div class="stage"><div id="reader"></div><div class="frame"><div class="laser"></div></div></div>
   <div id="status" class="status" role="status" aria-live="polite">Menyiapkan scanner…</div>
   <div class="row"><input id="manual" class="field" autocomplete="off" inputmode="text" placeholder="Atau masukkan barcode manual"><button id="sendManual" class="primary" type="button">Kirim barcode</button></div>
-  <div class="row" style="margin-top:9px"><button id="retry" type="button">↻ Coba kamera lagi</button><button id="flip" type="button">Ganti kamera</button><select id="scanSensitivity" class="field" aria-label="Sensitivitas pemindaian" style="flex:1;min-width:130px;max-width:190px"><option value="normal">Normal</option><option value="high" selected>Tinggi</option><option value="ultra">Ultra</option></select></div><div class="hint" id="cameraCapabilityHint">Mode Tinggi menyeimbangkan kecepatan dan akurasi. Kontrol fokus/zoom mengikuti dukungan kamera.</div>
+  <div class="row" style="margin-top:9px"><button id="retry" type="button">↻ Coba kamera lagi</button><button id="flip" type="button">Ganti kamera</button><select id="scanSensitivity" class="field" aria-label="Sensitivitas pemindaian" style="flex:1;min-width:130px;max-width:190px"><option value="normal">Normal</option><option value="high" selected>Tinggi</option><option value="ultra">Ultra</option></select></div><div class="hint" id="cameraCapabilityHint">Engine multi-sudut aktif jika didukung browser: rotasi 0°/90°/180°/270° dan koreksi perspektif pada kandidat barcode. Decoder utama tetap berjalan sebagai fallback.</div>
  </div>
  <section id="productEntryCard" class="product-entry-card" hidden>
  <div class="product-entry-heading"><div><h2>Form Tambah Produk</h2><p>Lengkapi data produk. Setelah disimpan, formulir siap untuk produk berikutnya tanpa menutup kamera.</p></div><span class="product-entry-count" id="productSavedCount">0 tersimpan</span></div>
@@ -167,8 +167,9 @@ const embedded=window.parent!==window;
 const parentWindow=embedded?window.parent:window.opener;
 let qr=null, cameras=[], cameraIndex=0, lastCode='', lastAt=0, parentReady=false;
 const SCANNER_INPUT_ENGINE={buffer:'',lastAt:0,startAt:0,gapMs:120,maxLength:128};
-const SCAN_PROFILES={normal:{fps:12,box:.78,max:380},high:{fps:18,box:.86,max:480},ultra:{fps:24,box:.92,max:560}};
+const SCAN_PROFILES={normal:{fps:12,box:.78,max:380,angleStep:2,engineFps:3},high:{fps:18,box:.86,max:480,angleStep:1,engineFps:5},ultra:{fps:24,box:.92,max:560,angleStep:1,engineFps:7}};
 let activeScanProfile='high';
+let angleEngine={detector:null,raf:0,lastRun:0,busy:false,video:null,canvas:null,ctx:null,active:false,rotationIndex:0,lastEngineCode:'',lastEngineAt:0};
 if(mode==='product'){
  ['manual','status','sendManual'].forEach(id=>document.getElementById(id)?.remove());
 }
@@ -203,7 +204,7 @@ function sendCode(raw,source='manual'){
  setStatus('✓ Barcode terkirim: '+code);
  try{const C=window.AudioContext||window.webkitAudioContext;if(C){const c=new C(),o=c.createOscillator(),g=c.createGain();o.frequency.value=1450;g.gain.value=.08;o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.1);o.onended=()=>c.close()}}catch(e){}
 }
-async function stopCamera(){if(qr){try{if(qr.isScanning)await qr.stop()}catch(e){}try{qr.clear()}catch(e){}qr=null}document.getElementById('reader').innerHTML=''}
+async function stopCamera(){stopMultiAngleEngine_();if(qr){try{if(qr.isScanning)await qr.stop()}catch(e){}try{qr.clear()}catch(e){}qr=null}document.getElementById('reader').innerHTML=''}
 function isMobileScannerDevice(){
  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'');
 }
@@ -222,6 +223,59 @@ async function applyCameraEnhancements_(){
   if(hint)hint.textContent='Kamera aktif. Autofocus/exposure otomatis diterapkan jika didukung perangkat.';
  }catch(e){if(hint)hint.textContent='Kamera aktif. Sebagian kontrol fokus/exposure tidak tersedia pada perangkat ini.';}
 }
+// Multi-Angle Barcode Detection & Perspective Correction Engine.
+// Native BarcodeDetector is an enhancement layer; html5-qrcode remains the compatibility fallback.
+function solveLinearSystem_(a,b){
+ const n=b.length;for(let i=0;i<n;i++){let pivot=i;for(let r=i+1;r<n;r++)if(Math.abs(a[r][i])>Math.abs(a[pivot][i]))pivot=r;if(Math.abs(a[pivot][i])<1e-9)return null;[a[i],a[pivot]]=[a[pivot],a[i]];[b[i],b[pivot]]=[b[pivot],b[i]];const d=a[i][i];for(let c=i;c<n;c++)a[i][c]/=d;b[i]/=d;for(let r=0;r<n;r++){if(r===i)continue;const f=a[r][i];for(let c=i;c<n;c++)a[r][c]-=f*a[i][c];b[r]-=f*b[i];}}return b;
+}
+function homography_(src,dst){
+ const A=[],B=[];for(let i=0;i<4;i++){const x=dst[i].x,y=dst[i].y,u=src[i].x,v=src[i].y;A.push([x,y,1,0,0,0,-u*x,-u*y]);B.push(u);A.push([0,0,0,x,y,1,-v*x,-v*y]);B.push(v);}const h=solveLinearSystem_(A,B);return h? h.concat(1):null;
+}
+function rectifyBarcodeCandidate_(sourceCanvas,points){
+ if(!Array.isArray(points)||points.length<4)return null;
+ const q=points.slice(0,4).map(p=>({x:Number(p.x),y:Number(p.y)}));if(q.some(p=>!Number.isFinite(p.x)||!Number.isFinite(p.y)))return null;
+ const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+ const w=Math.max(160,Math.min(1000,Math.round(Math.max(dist(q[0],q[1]),dist(q[3],q[2])))));
+ const h=Math.max(48,Math.min(360,Math.round(Math.max(dist(q[0],q[3]),dist(q[1],q[2])))));
+ const dst=[{x:0,y:0},{x:w-1,y:0},{x:w-1,y:h-1},{x:0,y:h-1}];
+ // Map each normalized output pixel back into the original perspective quadrilateral.
+ const inv=homography_(dst,q);if(!inv)return null;
+ const out=document.createElement('canvas');out.width=w;out.height=h;const oc=out.getContext('2d',{willReadFrequently:true});if(!oc)return null;
+ const srcCtx=sourceCanvas.getContext('2d',{willReadFrequently:true});const src=srcCtx.getImageData(0,0,sourceCanvas.width,sourceCanvas.height),dstData=oc.createImageData(w,h),d=inv;
+ for(let y=0;y<h;y++){for(let x=0;x<w;x++){const den=d[6]*x+d[7]*y+1;if(Math.abs(den)<1e-8)continue;const sx=(d[0]*x+d[1]*y+d[2])/den,sy=(d[3]*x+d[4]*y+d[5])/den;if(sx<0||sy<0||sx>=sourceCanvas.width-1||sy>=sourceCanvas.height-1)continue;const x0=Math.floor(sx),y0=Math.floor(sy),fx=sx-x0,fy=sy-y0,di=(y*w+x)*4;for(let c=0;c<4;c++){const p00=src.data[(y0*sourceCanvas.width+x0)*4+c],p10=src.data[(y0*sourceCanvas.width+x0+1)*4+c],p01=src.data[((y0+1)*sourceCanvas.width+x0)*4+c],p11=src.data[((y0+1)*sourceCanvas.width+x0+1)*4+c];dstData.data[di+c]=(p00*(1-fx)+p10*fx)*(1-fy)+(p01*(1-fx)+p11*fx)*fy;}}}
+ oc.putImageData(dstData,0,0);return out;
+}
+function rotateCanvas_(source,deg){
+ const c=document.createElement('canvas'),swap=deg===90||deg===270;c.width=swap?source.height:source.width;c.height=swap?source.width:source.height;const x=c.getContext('2d',{willReadFrequently:true});x.translate(c.width/2,c.height/2);x.rotate(deg*Math.PI/180);x.drawImage(source,-source.width/2,-source.height/2);return c;
+}
+async function runMultiAngleFrame_(){
+ if(!angleEngine.active||angleEngine.busy)return;const video=angleEngine.video;if(!video||video.readyState<2||!video.videoWidth)return;
+ const profile=SCAN_PROFILES[activeScanProfile]||SCAN_PROFILES.high,now=performance.now();if(now-angleEngine.lastRun<1000/profile.engineFps)return;angleEngine.lastRun=now;angleEngine.busy=true;
+ try{
+  const base=angleEngine.canvas;base.width=Math.min(960,video.videoWidth);base.height=Math.round(video.videoHeight*(base.width/video.videoWidth));angleEngine.ctx.drawImage(video,0,0,base.width,base.height);
+  const rotations=activeScanProfile==='normal'?[0,180]:[0,90,180,270];
+  for(const deg of rotations){if(!angleEngine.active)break;const frame=deg?rotateCanvas_(base,deg):base;let found=[];try{found=await angleEngine.detector.detect(frame)}catch(_e){}
+   for(const item of found){
+    // Normalize the detected quadrilateral and retry decoding on a fronto-parallel patch.
+    if(item.cornerPoints&&item.cornerPoints.length>=4){const patch=rectifyBarcodeCandidate_(frame,item.cornerPoints);if(patch){let retry=[];try{retry=await angleEngine.detector.detect(patch)}catch(_e){}for(const r of retry){if(r.rawValue){sendCode(r.rawValue,'camera-perspective-correction');return;}}}}
+    if(item.rawValue){const code=norm(item.rawValue);if(code&&!(code===angleEngine.lastEngineCode&&Date.now()-angleEngine.lastEngineAt<1000)){angleEngine.lastEngineCode=code;angleEngine.lastEngineAt=Date.now();sendCode(code,'camera-multi-angle');return;}}
+   }
+  }
+ }catch(e){/* Keep the primary camera decoder running if enhancement fails. */}
+ finally{angleEngine.busy=false;if(angleEngine.active)angleEngine.raf=requestAnimationFrame(runMultiAngleFrame_);}
+}
+async function startMultiAngleEngine_(){
+ stopMultiAngleEngine_();const hint=document.getElementById('cameraCapabilityHint');
+ if(typeof window.BarcodeDetector!=='function'){if(hint)hint.textContent='Multi-angle native detection tidak tersedia pada browser ini. Decoder kamera utama tetap aktif sebagai fallback.';return;}
+ try{
+  const supported=await BarcodeDetector.getSupportedFormats();const wanted=['ean_13','ean_8','code_128','code_39','upc_a','upc_e','qr_code'];const formats=wanted.filter(x=>supported.includes(x));if(!formats.length)throw new Error('Format barcode tidak didukung');
+  angleEngine.detector=new BarcodeDetector({formats});angleEngine.video=document.querySelector('#reader video');if(!angleEngine.video)throw new Error('Video kamera belum siap');
+  angleEngine.canvas=document.createElement('canvas');angleEngine.ctx=angleEngine.canvas.getContext('2d',{willReadFrequently:true});angleEngine.active=true;angleEngine.lastRun=0;angleEngine.raf=requestAnimationFrame(runMultiAngleFrame_);
+  if(hint)hint.textContent='Multi-Angle Engine aktif: rotasi 0°/90°/180°/270° dan koreksi perspektif kandidat barcode. Decoder utama tetap berjalan sebagai fallback.';
+ }catch(e){angleEngine.active=false;if(hint)hint.textContent='Multi-Angle Engine tidak tersedia penuh pada perangkat ini. Pemindaian standar tetap aktif.';}
+}
+function stopMultiAngleEngine_(){angleEngine.active=false;if(angleEngine.raf)cancelAnimationFrame(angleEngine.raf);angleEngine.raf=0;angleEngine.busy=false;angleEngine.video=null;angleEngine.detector=null;angleEngine.canvas=null;angleEngine.ctx=null;}
+
 function setScanSensitivity_(value){
  activeScanProfile=SCAN_PROFILES[value]?value:'high';
  const hint=document.getElementById('cameraCapabilityHint');
@@ -269,7 +323,9 @@ async function startCamera(){
    await qr.start(cameras[cameraIndex].id,scanConfig,onDecoded,()=>{});
   }
   await applyCameraEnhancements_();
-  setStatus((isMobileScannerDevice()?'Kamera belakang aktif':'Kamera aktif')+' — sensitivitas '+activeScanProfile.toUpperCase()+'. Arahkan barcode ke bingkai.');
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  await startMultiAngleEngine_();
+  setStatus((isMobileScannerDevice()?'Kamera belakang aktif':'Kamera aktif')+' — sensitivitas '+activeScanProfile.toUpperCase()+'. Engine multi-sudut berjalan jika didukung perangkat.');
  }catch(e){
   const n=String(e&&e.name||''),m=String(e&&e.message||e||'');
   let tip='Periksa izin kamera browser dan tutup aplikasi lain yang sedang memakai kamera.';
