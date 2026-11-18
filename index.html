@@ -685,7 +685,18 @@ window.addEventListener('message',event=>{
  if(d.type==='APOTEK_PRODUCT_SAVE_ACK'){
   if(!productSaveRequestId||String(d.requestId||'')!==productSaveRequestId)return;
   if(productSaveAckTimer){clearTimeout(productSaveAckTimer);productSaveAckTimer=null;}
-  setProductSaveStatus(d.message||'Permintaan diterima aplikasi utama. Menunggu hasil penyimpanan…');
+  const stage=String(d.stage||'parent-received');
+  if(stage==='backend-dispatched'){
+   setProductSaveStatus('Server sudah dihubungi. '+(d.message||'Menunggu konfirmasi penyimpanan…'));
+   if(productSaveResultTimer)clearTimeout(productSaveResultTimer);
+   productSaveResultTimer=setTimeout(()=>{
+    if(productSaveRequestId===String(d.requestId||''))setProductSaveStatus('Backend sudah dipanggil, tetapi hasil belum diterima. Jangan kirim ulang. Periksa Master Produk dan Eksekusi Apps Script.','warning');
+   },90000);
+  }else if(stage==='validated'){
+   setProductSaveStatus(d.message||'Data produk valid. Menyiapkan pemanggilan backend…');
+  }else{
+   setProductSaveStatus(d.message||'Permintaan diterima aplikasi utama. Menunggu proses berikutnya…');
+  }
  }
  if(d.type==='APOTEK_PRODUCT_SAVE_RESULT'){
   if(!productSaveRequestId||String(d.requestId||'')!==productSaveRequestId)return;
