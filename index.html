@@ -129,7 +129,7 @@ body.product-mode #status,body.product-mode .scanner-camera-column>.row:first-of
  <div class="product-entry-heading"><div><h2>Form Tambah Produk</h2><p>Lengkapi data produk. Setelah disimpan, formulir siap untuk produk berikutnya tanpa menutup kamera.</p></div><span class="product-entry-count" id="productSavedCount">0 tersimpan</span></div>
  <form id="productEntryForm" novalidate>
   <div class="product-entry-grid">
-   <label>Kode Produk<input id="productCode" autocomplete="off" placeholder="Otomatis oleh aplikasi"></label>
+   <label>Kode Produk<input id="productCode" autocomplete="off" placeholder="Kosongkan untuk kode otomatis"></label>
    <label>Barcode<div class="product-entry-inline"><input id="productBarcode" autocomplete="off" required placeholder="Hasil scan otomatis"><button id="rescanBarcode" type="button">Scan ulang</button></div></label>
    <label class="wide">Nama Produk<input id="productName" autocomplete="off" required placeholder="Masukkan nama produk"></label>
    <label>Kategori<select id="productCategory" required></select></label>
@@ -487,10 +487,11 @@ window.addEventListener('message',event=>{
   if(d.success){
    productSavedCount++;
    document.getElementById('productSavedCount').textContent=productSavedCount+' tersimpan';
-   setProductSaveStatus('✓ Produk berhasil disimpan. Form siap untuk produk berikutnya.','success');
+   const successMessage=String(d.message||'Produk berhasil disimpan.');
+   setProductSaveStatus('✓ '+successMessage,'success');
    applyProductOptions(d.productOptions||{});
    clearProductEntry();
-   setProductSaveStatus('✓ Produk berhasil disimpan. Silakan pindai produk berikutnya.','success');
+   setProductSaveStatus('✓ '+successMessage+' Silakan pindai produk berikutnya.','success');
    lastCode='';lastAt=0;
   }else{
    setProductSaveStatus(d.message||'Gagal menyimpan produk. Periksa kembali data.','error');
