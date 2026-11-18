@@ -10,7 +10,7 @@
 *{box-sizing:border-box}body{margin:0;background:#f1f5f9;color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
 main{max-width:650px;margin:0 auto;padding:16px}.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:0 12px 40px #0f172a12}
 header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}h1{font-size:20px;margin:0}p{color:var(--muted);margin:6px 0 12px}.stage{position:relative;overflow:hidden;background:#020617;border-radius:16px;min-height:240px}#reader{width:100%;min-height:240px}#reader video{width:100%;object-fit:cover!important;border-radius:16px}.frame{pointer-events:none;position:absolute;z-index:2;inset:22% 9%;border:2px solid #34d399;border-radius:14px;box-shadow:0 0 0 999px #0002}.laser{position:absolute;left:3%;right:3%;top:50%;height:2px;background:#fb4b4b;box-shadow:0 0 9px 2px #f84646a6;animation:laser 1.8s ease-in-out infinite alternate}@keyframes laser{from{transform:translateY(-55px)}to{transform:translateY(55px)}}
-.status{padding:12px 0;min-height:44px;color:#334155}.row{display:flex;gap:8px;flex-wrap:wrap}.row input{flex:1;min-width:180px}
+.status{padding:12px 0;min-height:44px;color:#334155}.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}.row{display:flex;gap:8px;flex-wrap:wrap}.row input{flex:1;min-width:180px}
 .scanner-camera-column>.row:last-child{display:flex;justify-content:center;align-items:center;flex-wrap:nowrap;gap:10px;margin-top:12px!important}
 .scanner-camera-column>.row:last-child button{flex:0 1 auto;min-width:0;white-space:nowrap}
 .field,button{font:inherit;border-radius:10px;padding:11px 12px;border:1px solid #cbd5e1}.field{width:100%}button{cursor:pointer;background:#fff;color:var(--ink);font-weight:650}button.primary{background:#047857;border-color:#047857;color:white}button:disabled{opacity:.55;cursor:not-allowed}.hint{font-size:12px;color:var(--muted);margin-top:12px}.code{font:700 17px ui-monospace,SFMono-Regular,Consolas,monospace;word-break:break-all}.pill{border-radius:999px;padding:6px 10px;background:#dcfce7;color:#166534;display:inline-block;font-weight:700}.error{color:var(--red)}
@@ -115,7 +115,8 @@ body.product-mode #status,body.product-mode .scanner-camera-column>.row:first-of
 .scanner-control-row{display:flex;flex-wrap:nowrap;align-items:center;gap:7px;width:calc(100% - 20px);margin:0!important;position:absolute;z-index:50;left:10px;right:10px;top:auto;bottom:10px;padding:7px;background:rgba(10,18,30,.78);border:1px solid rgba(255,255,255,.34);border-radius:13px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 5px 18px rgba(0,0,0,.32);pointer-events:auto;visibility:visible;box-sizing:border-box}
 .scanner-control-row .scanner-icon-btn{flex:0 0 40px;width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;padding:0;border:1px solid rgba(255,255,255,.65);background:rgba(255,255,255,.96);color:#0f766e;border-radius:10px}
 .scanner-control-row .scanner-icon-btn svg{width:19px;height:19px;display:block}
-.scanner-control-row #scanSensitivity{flex:1 1 0;min-width:0;max-width:none;width:100%;height:40px;padding:7px 9px;font-size:13px;background:rgba(255,255,255,.97);color:#0f172a}
+.scanner-control-row .scanner-sensitivity-label{flex:0 0 auto;white-space:nowrap;color:#fff;font-size:13px;font-weight:600;line-height:1;padding:0 2px}
+.scanner-control-row #scanSensitivity{flex:0 1 116px;min-width:78px;max-width:116px;width:100%;height:40px;padding:7px 9px;font-size:13px;background:rgba(255,255,255,.97);color:#0f172a}
 .scanner-control-row .scanner-info-btn{color:#2563eb}
 .scanner-info-dialog{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.58)}
 .scanner-info-dialog.is-open{display:flex}
@@ -126,27 +127,31 @@ body.product-mode #status,body.product-mode .scanner-camera-column>.row:first-of
 .scanner-info-item{padding:11px 0;border-top:1px solid #e8eef5}
 .scanner-info-item strong{display:block;font-size:13px;color:#0f172a;margin-bottom:4px}
 .scanner-info-item p{font-size:12px;line-height:1.55;margin:0;color:#475569;overflow-wrap:anywhere}
-@media(max-width:520px){.scanner-control-row{gap:6px;padding:5px;border-radius:11px}.scanner-control-row .scanner-icon-btn{flex-basis:36px;width:36px;height:36px}.scanner-control-row .scanner-icon-btn svg{width:17px;height:17px}.scanner-control-row #scanSensitivity{height:36px;font-size:12px;padding:5px}.scanner-info-panel{padding:14px}}
+@media(max-width:520px){.scanner-control-row{gap:6px;padding:5px;border-radius:11px}.scanner-control-row .scanner-icon-btn{flex-basis:36px;width:36px;height:36px}.scanner-control-row .scanner-icon-btn svg{width:17px;height:17px}.scanner-control-row .scanner-sensitivity-label{font-size:11px;padding:0}.scanner-control-row #scanSensitivity{flex-basis:92px;min-width:76px;max-width:92px;height:36px;font-size:12px;padding:5px}.scanner-info-panel{padding:14px}}
 #reader{position:relative;z-index:1}
 .stage{position:relative;isolation:isolate}
 .stage>.frame{z-index:3}
+.stage>.scanner-camera-active{position:absolute;z-index:12;top:14px;left:14px;display:inline-flex;align-items:center;gap:8px;max-width:calc(100% - 28px);padding:8px 13px;border:1px solid rgba(255,255,255,.2);border-radius:999px;background:rgba(8,15,25,.72);color:#fff;font-size:13px;font-weight:650;line-height:1.2;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);box-shadow:0 3px 12px rgba(0,0,0,.2);pointer-events:none}
+.stage>.scanner-camera-active svg{width:18px;height:18px;flex:0 0 18px}
 .stage>.scanner-control-row{z-index:20}
+@media(max-width:520px){.stage>.scanner-camera-active{top:10px;left:10px;padding:7px 10px;font-size:12px;gap:7px}.stage>.scanner-camera-active svg{width:16px;height:16px;flex-basis:16px}}
 .scanner-control-host{display:none!important;height:0;min-height:0;overflow:hidden}
-@media(max-width:700px){.scanner-control-row{left:8px;right:8px;bottom:8px;width:calc(100% - 16px);gap:6px;padding:6px}.scanner-control-row .scanner-icon-btn{flex-basis:38px;width:38px;height:38px}.scanner-control-row #scanSensitivity{height:38px}}
-@media(max-width:380px){.scanner-control-row{gap:4px;padding:5px;left:6px;right:6px;width:calc(100% - 12px)}.scanner-control-row .scanner-icon-btn{flex-basis:34px;width:34px;height:34px}.scanner-control-row #scanSensitivity{height:34px;font-size:11px;padding:4px}}
+@media(max-width:700px){.scanner-control-row{left:8px;right:8px;bottom:8px;width:calc(100% - 16px);gap:6px;padding:6px}.scanner-control-row .scanner-icon-btn{flex-basis:38px;width:38px;height:38px}.scanner-control-row .scanner-sensitivity-label{font-size:12px}.scanner-control-row #scanSensitivity{height:38px}}
+@media(max-width:380px){.scanner-control-row{gap:4px;padding:5px;left:6px;right:6px;width:calc(100% - 12px)}.scanner-control-row .scanner-icon-btn{flex-basis:34px;width:34px;height:34px}.scanner-control-row .scanner-sensitivity-label{font-size:10px}.scanner-control-row #scanSensitivity{flex-basis:78px;min-width:68px;max-width:78px;height:34px;font-size:11px;padding:4px}}
 </style>
 </head>
 <body>
 <main><section class="card">
-<header><div><h1>▦ Scanner Barcode Apotek</h1><p id="modeLabel">Menghubungkan ke aplikasi…</p></div><button id="closeBtn" type="button">Tutup</button></header>
+<header><div><h1>▦ Scanner Barcode Apotek</h1></div><button id="closeBtn" type="button">Tutup</button></header>
 <div class="scanner-workspace">
  <div class="scanner-camera-column">
-  <div class="stage"><div id="reader"></div><div class="frame"><div class="laser"></div></div></div>
-  <div id="status" class="status" role="status" aria-live="polite">Menyiapkan scanner…</div>
+  <div class="stage"><div id="reader"></div><div class="scanner-camera-active" id="scannerCameraActive" aria-live="polite"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 5h-4l-2 2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/></svg><span id="scannerCameraActiveText">Menyiapkan kamera…</span></div><div class="frame"><div class="laser"></div></div></div>
+  <div id="status" class="status" role="status" aria-live="polite">Menyiapkan scanner…</div><div id="scannerLiveStatus" class="sr-only" aria-live="polite"></div>
   <div class="row"><input id="manual" class="field" autocomplete="off" inputmode="text" placeholder="Atau masukkan barcode manual"><button id="sendManual" class="primary" type="button">Kirim barcode</button></div>
   <div id="scannerControlHost" class="scanner-control-host"><div class="scanner-control-row" id="scannerControlRow">
    <button id="retry" class="scanner-icon-btn" type="button" aria-label="Coba kamera lagi" title="Coba kamera lagi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5"/><path d="M19 12a7 7 0 1 1-2-5l3 5"/></svg></button>
    <button id="flip" class="scanner-icon-btn" type="button" aria-label="Ganti kamera" title="Ganti kamera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h13l-3-3"/><path d="M20 7l-3 3"/><path d="M17 17H4l3 3"/><path d="M4 17l3-3"/></svg></button>
+   <label class="scanner-sensitivity-label" for="scanSensitivity">Sensitivitas</label>
    <select id="scanSensitivity" class="field" aria-label="Sensitivitas pemindaian"><option value="normal">Normal</option><option value="high" selected>Tinggi</option><option value="ultra">Ultra</option></select>
    <button id="scannerInfoBtn" class="scanner-icon-btn scanner-info-btn" type="button" aria-label="Informasi scanner" title="Informasi scanner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg></button>
   </div></div>
@@ -179,6 +184,7 @@ body.product-mode #status,body.product-mode .scanner-camera-column>.row:first-of
    <button type="submit" class="primary" id="saveProductFromScanner">Simpan Produk</button>
    <button type="button" id="clearProductForm">Kosongkan Form</button>
   </div>
+  <div id="productSaveStatus" class="product-save-status" role="status" aria-live="polite"></div>
   
  </form>
  </section>
@@ -196,7 +202,9 @@ const allowedParent=/^https:\/\/script\.google\.com$/.test(parentOrigin)||/^http
 let mode=params.get('mode')==='product'?'product':'kasir';
 if(mode==='product')document.body.classList.add('product-mode');
 const statusEl=mode==='product'?null:document.getElementById('status');
-const modeLabel=document.getElementById('modeLabel');
+const cameraActiveText=document.getElementById('scannerCameraActiveText');
+const productSaveStatusEl=document.getElementById('productSaveStatus');
+const liveStatusEl=document.getElementById('scannerLiveStatus');
 const embedded=window.parent!==window;
 const parentWindow=embedded?window.parent:window.opener;
 let qr=null, cameras=[], cameraIndex=0, cameraSwitchRequested=false, cameraFacingMode='environment', lastCode='', lastAt=0, parentReady=false;
@@ -209,7 +217,15 @@ if(mode==='product'){
  ['manual','status','sendManual'].forEach(id=>document.getElementById(id)?.remove());
 }
 
-function setStatus(text,isError=false){if(statusEl){statusEl.textContent=text;statusEl.className='status'+(isError?' error':'')}else if(modeLabel){modeLabel.textContent=String(text);modeLabel.classList.toggle('error',!!isError)}}
+function setStatus(text,isError=false){if(statusEl){statusEl.textContent=text;statusEl.className='status'+(isError?' error':'')}if(liveStatusEl){liveStatusEl.textContent=String(text)}}
+function setCameraActiveLabel_(text){if(cameraActiveText)cameraActiveText.textContent=String(text||'Kamera aktif')}
+function getActiveCameraLabel_(){
+ if(isMobileScannerDevice())return cameraFacingMode==='user'?'Kamera Depan':'Kamera Belakang';
+ const label=String(cameras[cameraIndex]?.label||'').trim();
+ if(/front|user|depan|facetime/i.test(label))return 'Kamera Depan';
+ if(/back|rear|environment|belakang/i.test(label))return 'Kamera Belakang';
+ return label?('Kamera Aktif · '+label):'Kamera Aktif';
+}
 let hidMonitorIdleTimer=null;
 const scannerInfoState={
  hid:'Belum ada input HID yang terdeteksi. Browser tidak dapat memastikan koneksi fisik.',
@@ -404,6 +420,7 @@ async function startCamera(){
  const scanConfig={fps:profile.fps,qrbox:(w,h)=>({width:Math.floor(Math.min(w*profile.box,profile.max)),height:Math.floor(Math.min(h*.58,210))}),aspectRatio:1.777,disableFlip:false};
  const onDecoded=decoded=>sendCode(decoded);
  try{
+  setCameraActiveLabel_(isMobileScannerDevice()?(cameraFacingMode==='user'?'Mengaktifkan Kamera Depan…':'Mengaktifkan Kamera Belakang…'):'Mengaktifkan Kamera…');
   setStatus(isMobileScannerDevice()?(cameraFacingMode==='user'?'Mengaktifkan kamera depan…':'Mengaktifkan kamera belakang…'):'Meminta izin kamera…');
   qr=new Html5Qrcode('reader',{formatsToSupport:[
    Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,
@@ -468,6 +485,7 @@ async function startCamera(){
   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
   initScannerControlOverlay_();
   await startMultiAngleEngine_();
+  setCameraActiveLabel_(getActiveCameraLabel_());
   setStatus((isMobileScannerDevice()?(cameraFacingMode==='user'?'Kamera depan aktif':'Kamera belakang aktif'):'Kamera aktif')+' — sensitivitas '+activeScanProfile.toUpperCase()+'. Automatic Barcode Engine siap.');
   post('APOTEK_SCANNER_ENGINE_STATUS',getBarcodeEngineDiagnostics_());
   return true;
@@ -477,6 +495,7 @@ async function startCamera(){
   if(n==='NotAllowedError'||/permission denied|notallowederror/i.test(m))tip='Izin kamera ditolak. Klik ikon pengaturan situs di alamat GitHub Pages, ubah Kamera menjadi Izinkan, lalu coba lagi.';
   else if(n==='NotFoundError')tip='Kamera tidak ditemukan. Gunakan input manual atau scanner USB/Bluetooth.';
   else if(n==='NotReadableError')tip='Kamera sedang dipakai aplikasi lain. Tutup aplikasi tersebut lalu coba lagi.';
+  setCameraActiveLabel_('Kamera tidak aktif');
   setStatus(tip+' Detail: '+n+' '+m,true);
   return false;
  }
@@ -527,9 +546,8 @@ function clearProductEntry(){
  document.getElementById('productName').focus();
 }
 function setProductSaveStatus(message,kind=''){
- const el=document.getElementById('modeLabel');if(!el)return;
- el.textContent=message;el.classList.toggle('error',kind==='error');
- if(kind==='success')el.style.color='#047857';else if(kind==='error')el.style.color='#b91c1c';else el.style.color='';
+ const el=productSaveStatusEl;if(!el)return;
+ el.textContent=message;el.classList.toggle('success',kind==='success');el.classList.toggle('error',kind==='error');
 }
 function submitProductEntry(event){
  event.preventDefault();
@@ -580,7 +598,6 @@ window.addEventListener('message',event=>{
  if(d.type==='APOTEK_SCANNER_INIT'){
   parentReady=true;
   mode=d.mode==='product'?'product':'kasir';
-  modeLabel.textContent=mode==='product'?'Mode: Tambah Produk':'Mode: Kasir';
   setStatus('Terhubung ke aplikasi. Siap memindai.');
   const entry=document.getElementById('productEntryCard');
   if(entry)entry.hidden=mode!=='product';
@@ -641,13 +658,12 @@ document.getElementById('closeBtn').addEventListener('click',async()=>{
 });
 window.addEventListener('beforeunload',()=>{try{if(qr&&qr.isScanning)qr.stop()}catch(e){}post('APOTEK_SCANNER_CLOSE')});
 if(!nonce||!allowedParent||!parentWindow){
- modeLabel.textContent='Koneksi tidak valid';
+ setCameraActiveLabel_('Koneksi scanner tidak valid');
  setStatus('Buka halaman scanner melalui tombol Barcode Scanner di aplikasi Apotek. Jangan membuka URL ini secara langsung.',true);
  document.getElementById('retry').disabled=true;
  document.getElementById('sendManual').disabled=true;
 }
 else{
- modeLabel.textContent=mode==='product'?'Mode: Tambah Produk':'Mode: Kasir';
  post('APOTEK_SCANNER_READY');
  startCamera();
 }
