@@ -120,7 +120,7 @@ body.product-mode #status,body.product-mode .scanner-camera-column>.row:first-of
   <div class="stage"><div id="reader"></div><div class="frame"><div class="laser"></div></div></div>
   <div id="status" class="status" role="status" aria-live="polite">Menyiapkan scanner…</div>
   <div class="row"><input id="manual" class="field" autocomplete="off" inputmode="text" placeholder="Atau masukkan barcode manual"><button id="sendManual" class="primary" type="button">Kirim barcode</button></div>
-  <div class="row" style="margin-top:9px"><button id="retry" type="button">↻ Coba kamera lagi</button><button id="flip" type="button">Ganti kamera</button></div>
+  <div class="row" style="margin-top:9px"><button id="retry" type="button">↻ Coba kamera lagi</button><button id="flip" type="button">Ganti kamera</button><select id="scanSensitivity" class="field" aria-label="Sensitivitas pemindaian" style="flex:1;min-width:130px;max-width:190px"><option value="normal">Normal</option><option value="high" selected>Tinggi</option><option value="ultra">Ultra</option></select></div><div class="hint" id="cameraCapabilityHint">Mode Tinggi menyeimbangkan kecepatan dan akurasi. Kontrol fokus/zoom mengikuti dukungan kamera.</div>
  </div>
  <section id="productEntryCard" class="product-entry-card" hidden>
  <div class="product-entry-heading"><div><h2>Form Tambah Produk</h2><p>Lengkapi data produk. Setelah disimpan, formulir siap untuk produk berikutnya tanpa menutup kamera.</p></div><span class="product-entry-count" id="productSavedCount">0 tersimpan</span></div>
@@ -163,7 +163,9 @@ const modeLabel=document.getElementById('modeLabel');
 const embedded=window.parent!==window;
 const parentWindow=embedded?window.parent:window.opener;
 let qr=null, cameras=[], cameraIndex=0, lastCode='', lastAt=0, parentReady=false;
-const SCANNER_INPUT_ENGINE={buffer:'',lastAt:0,startAt:0,gapMs:85,maxLength:128};
+const SCANNER_INPUT_ENGINE={buffer:'',lastAt:0,startAt:0,gapMs:120,maxLength:128};
+const SCAN_PROFILES={normal:{fps:12,box:.78,max:380},high:{fps:18,box:.86,max:480},ultra:{fps:24,box:.92,max:560}};
+let activeScanProfile='high';
 if(mode==='product'){
  ['manual','status','sendManual'].forEach(id=>document.getElementById(id)?.remove());
 }
@@ -195,11 +197,30 @@ function isMobileScannerDevice(){
 function rearCameraIndex(list){
  return list.findIndex(camera=>/back|rear|environment|belakang/i.test(camera.label||''));
 }
+async function applyCameraEnhancements_(){
+ const hint=document.getElementById('cameraCapabilityHint');
+ if(!qr)return;
+ try{
+  const caps=typeof qr.getRunningTrackCapabilities==='function'?qr.getRunningTrackCapabilities():null;
+  const advanced=[];
+  if(caps&&caps.focusMode&&Array.isArray(caps.focusMode)&&caps.focusMode.includes('continuous'))advanced.push({focusMode:'continuous'});
+  if(caps&&caps.exposureMode&&Array.isArray(caps.exposureMode)&&caps.exposureMode.includes('continuous'))advanced.push({exposureMode:'continuous'});
+  if(advanced.length&&typeof qr.applyVideoConstraints==='function')await qr.applyVideoConstraints({advanced});
+  if(hint)hint.textContent='Kamera aktif. Autofocus/exposure otomatis diterapkan jika didukung perangkat.';
+ }catch(e){if(hint)hint.textContent='Kamera aktif. Sebagian kontrol fokus/exposure tidak tersedia pada perangkat ini.';}
+}
+function setScanSensitivity_(value){
+ activeScanProfile=SCAN_PROFILES[value]?value:'high';
+ const hint=document.getElementById('cameraCapabilityHint');
+ if(hint)hint.textContent='Sensitivitas '+activeScanProfile.toUpperCase()+' dipilih. Kamera akan menyesuaikan kecepatan dan area deteksi.';
+ if(qr&&qr.isScanning){startCamera();}
+}
 async function startCamera(){
  await stopCamera();
  if(!window.isSecureContext){setStatus('Kamera memerlukan HTTPS. Pastikan halaman ini dibuka dari GitHub Pages.',true);return}
  if(!window.Html5Qrcode){setStatus('Library scanner gagal dimuat. Periksa koneksi internet, atau gunakan input manual.',true);return}
- const scanConfig={fps:12,qrbox:(w,h)=>({width:Math.floor(Math.min(w*.82,420)),height:Math.floor(Math.min(h*.42,150))}),aspectRatio:1.777,disableFlip:false};
+ const profile=SCAN_PROFILES[activeScanProfile]||SCAN_PROFILES.high;
+ const scanConfig={fps:profile.fps,qrbox:(w,h)=>({width:Math.floor(Math.min(w*profile.box,profile.max)),height:Math.floor(Math.min(h*.58,210))}),aspectRatio:1.777,disableFlip:false};
  const onDecoded=decoded=>sendCode(decoded);
  try{
   setStatus(isMobileScannerDevice()?'Mengaktifkan kamera belakang…':'Meminta izin kamera…');
@@ -234,7 +255,8 @@ async function startCamera(){
    cameraIndex=Math.min(cameraIndex,cameras.length-1);
    await qr.start(cameras[cameraIndex].id,scanConfig,onDecoded,()=>{});
   }
-  setStatus(isMobileScannerDevice()?'Kamera belakang aktif — arahkan barcode ke bingkai. Mode multi-scan aktif.':'Kamera aktif — arahkan barcode ke bingkai. Mode multi-scan aktif.');
+  await applyCameraEnhancements_();
+  setStatus((isMobileScannerDevice()?'Kamera belakang aktif':'Kamera aktif')+' — sensitivitas '+activeScanProfile.toUpperCase()+'. Arahkan barcode ke bingkai.');
  }catch(e){
   const n=String(e&&e.name||''),m=String(e&&e.message||e||'');
   let tip='Periksa izin kamera browser dan tutup aplikasi lain yang sedang memakai kamera.';
@@ -317,15 +339,16 @@ window.addEventListener('keydown',function(e){
   e.preventDefault();sendCode(t.value);return;
  }
  const editable=tag==='input'||tag==='textarea'||tag==='select'||!!(t&&t.isContentEditable);
- if(editable||e.ctrlKey||e.altKey||e.metaKey||e.key==='Shift'||e.key==='Tab')return;
+ if(editable||e.ctrlKey||e.altKey||e.metaKey||e.key==='Shift')return;
  const now=Date.now();
  if(now-SCANNER_INPUT_ENGINE.lastAt>SCANNER_INPUT_ENGINE.gapMs)SCANNER_INPUT_ENGINE.buffer='';
  SCANNER_INPUT_ENGINE.lastAt=now;
- if(e.key==='Enter'){
+ if(e.key==='Enter'||e.key==='Tab'){
+  if(e.key==='Tab'&&SCANNER_INPUT_ENGINE.buffer.length>=4)e.preventDefault();
   const code=SCANNER_INPUT_ENGINE.buffer;SCANNER_INPUT_ENGINE.buffer='';
   if(code.length>=4){
    const elapsed=now-SCANNER_INPUT_ENGINE.startAt;
-   if(elapsed<=1200&&elapsed/Math.max(1,code.length)<=SCANNER_INPUT_ENGINE.gapMs)sendCode(code);
+   if(elapsed<=1800&&elapsed/Math.max(1,code.length)<=SCANNER_INPUT_ENGINE.gapMs)sendCode(code);
   }
   return;
  }
@@ -370,6 +393,7 @@ window.addEventListener('message',event=>{
 const sendManualBtn=document.getElementById('sendManual');if(sendManualBtn)sendManualBtn.addEventListener('click',()=>sendCode(document.getElementById('manual')?.value||''));
 document.getElementById('manual')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendCode(e.currentTarget.value)}});
 document.getElementById('retry').addEventListener('click',startCamera);
+document.getElementById('scanSensitivity')?.addEventListener('change',e=>setScanSensitivity_(e.target.value));
 document.getElementById('flip').addEventListener('click',async()=>{if(cameras.length<2){setStatus('Perangkat hanya menyediakan satu kamera.');return}cameraIndex=(cameraIndex+1)%cameras.length;await startCamera()});
 document.getElementById('closeBtn').addEventListener('click',async()=>{
  await stopCamera();
