@@ -263,6 +263,7 @@ const liveStatusEl=document.getElementById('scannerLiveStatus');
 const embedded=window.parent!==window;
 const parentWindow=embedded?window.parent:window.opener;
 let qr=null, cameras=[], cameraIndex=0, cameraSwitchRequested=false, cameraFacingMode='environment', lastCode='', lastAt=0, parentReady=false;
+let productSaveRequestId='', productSaveAckTimer=null, productSaveResultTimer=null;
 const SCANNER_INPUT_ENGINE={buffer:'',lastAt:0,startAt:0,gapMs:120,maxLength:128};
 const SCAN_PROFILES={normal:{fps:12,box:.78,max:380,angleStep:2,engineFps:3},high:{fps:18,box:.86,max:480,angleStep:1,engineFps:5},ultra:{fps:24,box:.92,max:560,angleStep:1,engineFps:7}};
 let activeScanProfile='high';
@@ -300,9 +301,10 @@ function setHidMonitor_(state,detail){
  if(state!=='unknown')hidMonitorIdleTimer=setTimeout(()=>setHidMonitor_('unknown','Tidak ada aktivitas selama 60 detik; koneksi fisik tidak dapat dipastikan'),61000);
 }
 function post(type,extra){
- if(!allowedParent||!parentWindow)return;
- if(!embedded&&parentWindow.closed)return;
- try{parentWindow.postMessage(Object.assign({type,nonce},extra||{}),parentOrigin)}catch(e){}
+ if(!allowedParent||!parentWindow)return false;
+ if(!embedded&&parentWindow.closed)return false;
+ try{parentWindow.postMessage(Object.assign({type,nonce},extra||{}),parentOrigin);return true}
+ catch(e){console.error('[Barcode Bridge] postMessage gagal:',e);return false}
 }
 function norm(v){return String(v||'').trim().replace(/\s+/g,'').toUpperCase()}
 function sendCode(raw,source='manual'){
@@ -613,11 +615,21 @@ function submitProductEntry(event){
  if(!payload.KategoriID||!payload.SatuanID){setProductSaveStatus('Kategori dan Satuan wajib dipilih.','error');return}
  if(Number(payload.HargaBeli)<0||Number(payload.HargaJual)<0||Number(payload.StokMinimal)<0){setProductSaveStatus('Harga dan stok minimal tidak boleh negatif.','error');return}
  const btn=document.getElementById('saveProductFromScanner');btn.disabled=true;
- setProductSaveStatus('Menyimpan produk ke aplikasi Apotek…');
- if(productSaveWatchdog)clearTimeout(productSaveWatchdog);
- post('APOTEK_PRODUCT_SAVE_REQUEST',{product:payload});
- productSaveWatchdog=setTimeout(()=>{
-  setProductSaveStatus('Permintaan masih diproses oleh server. Jangan tekan Simpan ulang dahulu. Periksa Master Produk sebelum mencoba lagi.','warning');
+ productSaveRequestId=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():'prd-'+Date.now()+'-'+Math.random().toString(36).slice(2);
+ setProductSaveStatus('Mengirim permintaan ke aplikasi Apotek…');
+ const sent=post('APOTEK_PRODUCT_SAVE_REQUEST',{product:payload,requestId:productSaveRequestId});
+ if(!sent){
+  productSaveRequestId='';btn.disabled=false;
+  setProductSaveStatus('Gagal mengirim permintaan ke aplikasi utama. Koneksi popup terputus. Tutup scanner dan buka kembali dari aplikasi.','error');
+  return;
+ }
+ if(productSaveAckTimer)clearTimeout(productSaveAckTimer);
+ if(productSaveResultTimer)clearTimeout(productSaveResultTimer);
+ productSaveAckTimer=setTimeout(()=>{
+  if(productSaveRequestId)setProductSaveStatus('Aplikasi utama tidak mengonfirmasi penerimaan permintaan. Permintaan belum terbukti mencapai server. Tutup scanner, buka kembali dari aplikasi, lalu periksa Master Produk sebelum mencoba lagi.','error');
+ },12000);
+ productSaveResultTimer=setTimeout(()=>{
+  if(productSaveRequestId)setProductSaveStatus('Aplikasi utama sudah menerima permintaan, tetapi belum mengirim hasil penyimpanan. Jangan kirim ulang dahulu. Periksa Eksekusi Apps Script dan Master Produk.','warning');
  },60000);
 }
 document.getElementById('productEntryForm').addEventListener('submit',submitProductEntry);
@@ -662,8 +674,16 @@ window.addEventListener('message',event=>{
   if(entry)entry.hidden=mode!=='product';
   if(mode==='product')applyProductOptions(d.productOptions||{});
  }
+ if(d.type==='APOTEK_PRODUCT_SAVE_ACK'){
+  if(!productSaveRequestId||String(d.requestId||'')!==productSaveRequestId)return;
+  if(productSaveAckTimer){clearTimeout(productSaveAckTimer);productSaveAckTimer=null;}
+  setProductSaveStatus(d.message||'Permintaan diterima aplikasi utama. Menunggu hasil penyimpanan…');
+ }
  if(d.type==='APOTEK_PRODUCT_SAVE_RESULT'){
-  if(productSaveWatchdog){clearTimeout(productSaveWatchdog);productSaveWatchdog=null;}
+  if(!productSaveRequestId||String(d.requestId||'')!==productSaveRequestId)return;
+  productSaveRequestId='';
+  if(productSaveAckTimer){clearTimeout(productSaveAckTimer);productSaveAckTimer=null;}
+  if(productSaveResultTimer){clearTimeout(productSaveResultTimer);productSaveResultTimer=null;}
   const btn=document.getElementById('saveProductFromScanner');if(btn)btn.disabled=false;
   if(d.success){
    productSavedCount++;
@@ -683,7 +703,6 @@ window.addEventListener('message',event=>{
   if(!embedded)window.close();
  }
 });
-let productSaveWatchdog=null;
 const sendManualBtn=document.getElementById('sendManual');if(sendManualBtn)sendManualBtn.addEventListener('click',()=>sendCode(document.getElementById('manual')?.value||''));
 document.getElementById('manual')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendCode(e.currentTarget.value)}});
 document.getElementById('retry').addEventListener('click',startCamera);
