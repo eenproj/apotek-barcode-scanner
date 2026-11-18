@@ -112,7 +112,7 @@ body.product-mode #status,body.product-mode .scanner-camera-column>.row:first-of
 
 
 
-.scanner-control-row{display:flex;flex-wrap:nowrap;align-items:center;gap:7px;width:100%;margin:0!important;position:absolute;z-index:30;left:0;top:0;padding:7px;background:rgba(10,18,30,.72);border:1px solid rgba(255,255,255,.28);border-radius:13px;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);box-shadow:0 5px 18px rgba(0,0,0,.28);pointer-events:auto;visibility:hidden}
+.scanner-control-row{display:flex;flex-wrap:nowrap;align-items:center;gap:7px;width:calc(100% - 20px);margin:0!important;position:absolute;z-index:50;left:10px;right:10px;top:auto;bottom:10px;padding:7px;background:rgba(10,18,30,.78);border:1px solid rgba(255,255,255,.34);border-radius:13px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 5px 18px rgba(0,0,0,.32);pointer-events:auto;visibility:visible;box-sizing:border-box}
 .scanner-control-row .scanner-icon-btn{flex:0 0 40px;width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;padding:0;border:1px solid rgba(255,255,255,.65);background:rgba(255,255,255,.96);color:#0f766e;border-radius:10px}
 .scanner-control-row .scanner-icon-btn svg{width:19px;height:19px;display:block}
 .scanner-control-row #scanSensitivity{flex:1 1 0;min-width:0;max-width:none;width:100%;height:40px;padding:7px 9px;font-size:13px;background:rgba(255,255,255,.97);color:#0f172a}
@@ -127,10 +127,13 @@ body.product-mode #status,body.product-mode .scanner-camera-column>.row:first-of
 .scanner-info-item strong{display:block;font-size:13px;color:#0f172a;margin-bottom:4px}
 .scanner-info-item p{font-size:12px;line-height:1.55;margin:0;color:#475569;overflow-wrap:anywhere}
 @media(max-width:520px){.scanner-control-row{gap:6px;padding:5px;border-radius:11px}.scanner-control-row .scanner-icon-btn{flex-basis:36px;width:36px;height:36px}.scanner-control-row .scanner-icon-btn svg{width:17px;height:17px}.scanner-control-row #scanSensitivity{height:36px;font-size:12px;padding:5px}.scanner-info-panel{padding:14px}}
-#qr-shaded-region{overflow:visible!important;pointer-events:none!important}
-#qr-shaded-region .scanner-control-row{pointer-events:auto!important}
-#reader{position:relative}
-.scanner-control-host{height:0;min-height:0;overflow:visible}
+#reader{position:relative;z-index:1}
+.stage{position:relative;isolation:isolate}
+.stage>.frame{z-index:3}
+.stage>.scanner-control-row{z-index:20}
+.scanner-control-host{display:none!important;height:0;min-height:0;overflow:hidden}
+@media(max-width:700px){.scanner-control-row{left:8px;right:8px;bottom:8px;width:calc(100% - 16px);gap:6px;padding:6px}.scanner-control-row .scanner-icon-btn{flex-basis:38px;width:38px;height:38px}.scanner-control-row #scanSensitivity{height:38px}}
+@media(max-width:380px){.scanner-control-row{gap:4px;padding:5px;left:6px;right:6px;width:calc(100% - 12px)}.scanner-control-row .scanner-icon-btn{flex-basis:34px;width:34px;height:34px}.scanner-control-row #scanSensitivity{height:34px;font-size:11px;padding:4px}}
 </style>
 </head>
 <body>
@@ -358,58 +361,40 @@ function setScanSensitivity_(value){
 const scannerControlRow=document.getElementById('scannerControlRow');
 const scannerControlHost=document.getElementById('scannerControlHost');
 const scannerReader=document.getElementById('reader');
-let scannerShadeObserver=null,scannerReaderResizeObserver=null,scannerControlPositionRaf=0;
-function positionScannerControlsInShade_(){
- if(!scannerControlRow||!scannerControlRow.isConnected||!scannerControlRow.parentElement||scannerControlRow.parentElement.id!=='qr-shaded-region')return;
- const shade=scannerControlRow.parentElement;
- const readerRect=scannerReader.getBoundingClientRect();
- const shadeRect=shade.getBoundingClientRect();
- const rowHeight=scannerControlRow.getBoundingClientRect().height||50;
- const left=Math.max(4,readerRect.left-shadeRect.left+8);
- const top=Math.max(4,readerRect.bottom-shadeRect.top-rowHeight-8);
- const width=Math.max(120,readerRect.width-16);
- scannerControlRow.style.left=left+'px';
- scannerControlRow.style.top=top+'px';
- scannerControlRow.style.width=width+'px';
+const scannerStage=scannerReader?.closest('.stage');
+let scannerReaderResizeObserver=null;
+function attachScannerControlsToStage_(){
+ if(!scannerControlRow||!scannerStage)return false;
+ // Tempatkan kontrol sebagai anak langsung .stage, bukan #qr-shaded-region.
+ // Overlay html5-qrcode dapat dibuat ulang dan memiliki geometri/clip sendiri;
+ // karena itu kontrol di dalamnya berisiko tersembunyi atau terpotong.
+ if(scannerControlRow.parentElement!==scannerStage)scannerStage.appendChild(scannerControlRow);
+ scannerStage.style.position='relative';
+ scannerStage.style.isolation='isolate';
+ scannerControlRow.style.position='absolute';
+ scannerControlRow.style.left='';
+ scannerControlRow.style.right='';
+ scannerControlRow.style.top='auto';
+ scannerControlRow.style.bottom='';
+ scannerControlRow.style.width='';
  scannerControlRow.style.visibility='visible';
-}
-function attachScannerControlsToShade_(){
- const shade=scannerReader&&scannerReader.querySelector('#qr-shaded-region');
- if(!shade||!scannerControlRow)return false;
- if(scannerControlRow.parentElement!==shade){
-  shade.appendChild(scannerControlRow);
- }
- shade.style.overflow='visible';
- shade.style.pointerEvents='none';
+ scannerControlRow.style.display='flex';
  scannerControlRow.style.pointerEvents='auto';
  if(scannerControlHost)scannerControlHost.style.display='none';
- positionScannerControlsInShade_();
  return true;
 }
-function scheduleScannerControlPosition_(){
- if(scannerControlPositionRaf)cancelAnimationFrame(scannerControlPositionRaf);
- scannerControlPositionRaf=requestAnimationFrame(()=>{scannerControlPositionRaf=0;positionScannerControlsInShade_();});
-}
+function scheduleScannerControlPosition_(){attachScannerControlsToStage_();}
 function initScannerControlOverlay_(){
- if(!scannerReader)return;
- if(scannerShadeObserver)scannerShadeObserver.disconnect();
- scannerShadeObserver=new MutationObserver(()=>{
-  if(!attachScannerControlsToShade_()&&scannerControlRow&&scannerControlRow.parentElement?.id==='qr-shaded-region'){
-   if(scannerControlHost){scannerControlHost.appendChild(scannerControlRow);scannerControlHost.style.display='block';}
-   scannerControlRow.style.visibility='hidden';
-  }
- });
- scannerShadeObserver.observe(scannerReader,{childList:true,subtree:true});
- if(!attachScannerControlsToShade_()&&scannerControlHost){scannerControlHost.appendChild(scannerControlRow);scannerControlHost.style.display='block';scannerControlRow.style.visibility='visible';scannerControlRow.style.position='relative';scannerControlRow.style.width='100%';scannerControlRow.style.left='auto';scannerControlRow.style.top='auto';}
+ if(!scannerStage||!scannerControlRow)return;
+ attachScannerControlsToStage_();
  if(window.ResizeObserver){
   if(scannerReaderResizeObserver)scannerReaderResizeObserver.disconnect();
-  scannerReaderResizeObserver=new ResizeObserver(scheduleScannerControlPosition_);
-  scannerReaderResizeObserver.observe(scannerReader);
+  scannerReaderResizeObserver=new ResizeObserver(attachScannerControlsToStage_);
+  scannerReaderResizeObserver.observe(scannerStage);
  }
 }
 window.addEventListener('resize',scheduleScannerControlPosition_,{passive:true});
 window.addEventListener('orientationchange',()=>setTimeout(scheduleScannerControlPosition_,180),{passive:true});
-window.addEventListener('scroll',scheduleScannerControlPosition_,{passive:true});
 
 async function startCamera(){
  await stopCamera();
