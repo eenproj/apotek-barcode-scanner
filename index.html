@@ -614,7 +614,11 @@ function submitProductEntry(event){
  if(Number(payload.HargaBeli)<0||Number(payload.HargaJual)<0||Number(payload.StokMinimal)<0){setProductSaveStatus('Harga dan stok minimal tidak boleh negatif.','error');return}
  const btn=document.getElementById('saveProductFromScanner');btn.disabled=true;
  setProductSaveStatus('Menyimpan produk ke aplikasi Apotek…');
+ if(productSaveWatchdog)clearTimeout(productSaveWatchdog);
  post('APOTEK_PRODUCT_SAVE_REQUEST',{product:payload});
+ productSaveWatchdog=setTimeout(()=>{
+  setProductSaveStatus('Permintaan masih diproses oleh server. Jangan tekan Simpan ulang dahulu. Periksa Master Produk sebelum mencoba lagi.','warning');
+ },60000);
 }
 document.getElementById('productEntryForm').addEventListener('submit',submitProductEntry);
 document.getElementById('clearProductForm').addEventListener('click',clearProductEntry);
@@ -659,6 +663,7 @@ window.addEventListener('message',event=>{
   if(mode==='product')applyProductOptions(d.productOptions||{});
  }
  if(d.type==='APOTEK_PRODUCT_SAVE_RESULT'){
+  if(productSaveWatchdog){clearTimeout(productSaveWatchdog);productSaveWatchdog=null;}
   const btn=document.getElementById('saveProductFromScanner');if(btn)btn.disabled=false;
   if(d.success){
    productSavedCount++;
@@ -678,6 +683,7 @@ window.addEventListener('message',event=>{
   if(!embedded)window.close();
  }
 });
+let productSaveWatchdog=null;
 const sendManualBtn=document.getElementById('sendManual');if(sendManualBtn)sendManualBtn.addEventListener('click',()=>sendCode(document.getElementById('manual')?.value||''));
 document.getElementById('manual')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendCode(e.currentTarget.value)}});
 document.getElementById('retry').addEventListener('click',startCamera);
