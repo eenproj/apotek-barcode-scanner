@@ -372,12 +372,12 @@ function submitToServerBridge_(mode,requestId,payload){
   const body=Object.assign({},payload||{},{clientId:bridgeClientId});
   const fields={token:sessionToken,mode,requestId,payload:JSON.stringify(body)};
   Object.keys(fields).forEach(k=>{const input=document.createElement('input');input.type='hidden';input.name=k;input.value=String(fields[k]);form.appendChild(input)});
-  const timeout=setTimeout(()=>{window.removeEventListener('message',onMessage);form.remove();reject(new Error('Server belum memberikan konfirmasi. Periksa koneksi dan status data sebelum mencoba ulang.'))},25000);
+  const timeout=setTimeout(()=>{window.removeEventListener('message',onMessage);form.remove();reject(new Error('Server belum memberikan konfirmasi setelah 40 detik. Permintaan lookup mungkin masih diproses. Jangan pindai ulang; periksa koneksi dan coba kirim ulang permintaan yang sama.'))},40000);
   function onMessage(event){
    if(event.data?.channel!=='APOTEK_BARCODE_HTTP'||String(event.data?.result?.requestId||'')!==String(requestId))return;
    clearTimeout(timeout);window.removeEventListener('message',onMessage);form.remove();
    const r=event.data.result||{};
-   if(r.ok)resolve(r);else reject(new Error(r.message||'Server menolak permintaan barcode.'));
+   if(r.ok){if(r.serverElapsedMs!==undefined)console.info('[Unified Cashier] Server lookup selesai dalam '+r.serverElapsedMs+' ms');resolve(r)}else reject(new Error(r.message||'Server menolak permintaan barcode.'));
   }
   window.addEventListener('message',onMessage);
   // Pastikan target iframe telah terpasang sebelum POST dijalankan.
