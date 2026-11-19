@@ -367,7 +367,9 @@ function submitToServerBridge_(mode,requestId,payload){
  }
  return new Promise((resolve,reject)=>{
   const frameName='apotekBarcodeBridgeFrame';let frame=document.getElementById(frameName);
-  if(!frame){frame=document.createElement('iframe');frame.name=frameName;frame.id=frameName;frame.style.display='none';document.body.appendChild(frame)}
+  if(!frame){frame=document.createElement('iframe');frame.name=frameName;frame.id=frameName;frame.setAttribute('aria-hidden','true');frame.style.display='none';document.body.appendChild(frame)}
+  // Pastikan target form konsisten pada browser mobile setelah iframe dipulihkan.
+  frame.name=frameName;
   const form=document.createElement('form');form.method='POST';form.action=bridgeUrl;form.target=frameName;form.style.display='none';
   const body=Object.assign({},payload||{},{clientId:bridgeClientId});
   const fields={token:sessionToken,mode,requestId,payload:JSON.stringify(body)};
@@ -375,6 +377,7 @@ function submitToServerBridge_(mode,requestId,payload){
   const timeout=setTimeout(()=>{window.removeEventListener('message',onMessage);form.remove();reject(new Error('Server belum memberikan konfirmasi setelah 40 detik. Permintaan lookup mungkin masih diproses. Jangan pindai ulang; periksa koneksi dan coba kirim ulang permintaan yang sama.'))},40000);
   function onMessage(event){
    if(event.data?.channel!=='APOTEK_BARCODE_HTTP'||String(event.data?.result?.requestId||'')!==String(requestId))return;
+   console.info('[Barcode Bridge] Respons diterima dari',event.origin,'untuk',mode,'request',requestId);
    clearTimeout(timeout);window.removeEventListener('message',onMessage);form.remove();
    const r=event.data.result||{};
    if(r.ok){if(r.serverElapsedMs!==undefined)console.info('[Unified Cashier] Server lookup selesai dalam '+r.serverElapsedMs+' ms');resolve(r)}else reject(new Error(r.message||'Server menolak permintaan barcode.'));
