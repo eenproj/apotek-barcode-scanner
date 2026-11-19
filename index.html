@@ -194,6 +194,23 @@ body.product-mode #status,body.product-mode .scanner-camera-column>.row:first-of
 }
 
 </style>
+
+<style>
+#unifiedCashierCard{display:none;margin:16px 0 4px;background:linear-gradient(145deg,#101d31,#142b40);color:#eaf5ff;border:1px solid rgba(92,190,220,.28);border-radius:18px;padding:16px;box-shadow:0 12px 34px rgba(0,0,0,.18)}
+#unifiedCashierCard *{box-sizing:border-box}#unifiedCashierCard .uc-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+#unifiedCashierCard h2,#unifiedCashierCard h3{margin:0;color:inherit}#unifiedCashierCard .uc-sub{font-size:12px;color:#a9c3d5;margin-top:4px}
+#unifiedCashierCard .uc-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+#unifiedCashierCard label{display:block;font-size:12px;color:#b9d0df}#unifiedCashierCard input,#unifiedCashierCard select{width:100%;min-height:40px;margin-top:5px;border:1px solid #34556d;border-radius:10px;background:#0b1929;color:#f5fbff;padding:9px;font:inherit}
+#unifiedCashierCard .uc-panel{background:rgba(4,15,27,.48);border:1px solid rgba(145,190,215,.18);border-radius:13px;padding:12px;margin-top:12px}
+#unifiedCashierCard .uc-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(145,190,215,.13);font-size:13px}
+#unifiedCashierCard .uc-row:last-child{border-bottom:0}#unifiedCashierCard .uc-muted{font-size:11px;color:#9db6c8}
+#unifiedCashierCard .uc-btn{border:0;border-radius:10px;padding:11px 14px;font-weight:700;cursor:pointer;background:#17a7a0;color:white}
+#unifiedCashierCard .uc-btn.secondary{background:#29445a;color:#eaf5ff}#unifiedCashierCard .uc-btn:disabled{opacity:.55;cursor:wait}
+#unifiedCashierCard .uc-total{font-size:22px;font-weight:800;color:#65e6c1;font-variant-numeric:tabular-nums}
+#unifiedCashierCard .uc-status{font-size:12px;margin-top:10px;min-height:18px;color:#9debd7}
+#unifiedCashierCard .uc-remove{background:transparent;color:#ffb2b2;border:0;font-size:18px;padding:3px 8px}
+@media(max-width:520px){#unifiedCashierCard{padding:13px;margin-top:12px}#unifiedCashierCard .uc-grid{grid-template-columns:1fr 1fr}#unifiedCashierCard .uc-total{font-size:20px}}
+</style>
 </head>
 <body>
 <main><section class="card">
@@ -211,6 +228,30 @@ body.product-mode #status,body.product-mode .scanner-camera-column>.row:first-of
    <button id="scannerInfoBtn" class="scanner-icon-btn scanner-info-btn" type="button" aria-label="Informasi scanner" title="Informasi scanner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg></button>
   </div></div>
  </div>
+
+<section id="unifiedCashierCard" aria-label="Kasir terpadu">
+ <div class="uc-head"><div><h2>APOTEK · SMART POS</h2><div class="uc-sub">Unified Cashier Interface · transaksi langsung dari scanner</div></div><strong id="ucItemCount">0 item</strong></div>
+ <div class="uc-grid">
+  <label>Pelanggan<input id="ucCustomer" value="Umum" autocomplete="off"></label>
+  <label>Jenis Transaksi<select id="ucTransactionType"><option value="Tanpa Resep">Tanpa Resep</option><option value="Resep">Resep</option></select></label>
+  <label id="ucPrescriptionWrap" style="display:none">Nomor Resep<input id="ucPrescription" autocomplete="off" placeholder="Nomor resep"></label>
+  <label>Diskon (%)<input id="ucDiscount" type="number" min="0" max="100" step="0.01" value="0"></label>
+  <label>Pajak (%)<input id="ucTax" type="number" min="0" max="100" step="0.01" value="0"></label>
+  <label>Metode Pembayaran<select id="ucPayment"><option>Cash</option><option>Transfer</option><option>Qris</option></select></label>
+  <label id="ucCashWrap">Uang Diterima<input id="ucCashReceived" type="number" min="0" step="1" inputmode="numeric" placeholder="Nominal pembayaran"></label>
+ </div>
+ <div class="uc-panel"><div class="uc-head"><h3>Keranjang</h3><span class="uc-muted">FEFO & stok divalidasi server saat posting</span></div><div id="ucCartRows"><div class="uc-muted">Belum ada produk. Pindai barcode untuk menambahkan.</div></div>
+  <div class="uc-row"><span>Subtotal</span><strong id="ucGross">Rp 0</strong></div>
+  <div class="uc-row"><span>Diskon</span><strong id="ucDiscountValue">Rp 0</strong></div>
+  <div class="uc-row"><span>Pajak</span><strong id="ucTaxValue">Rp 0</strong></div>
+  <div class="uc-row"><strong>Total Pembayaran</strong><strong class="uc-total" id="ucGrandTotal">Rp 0</strong></div>
+  <div class="uc-row"><span>Kembalian</span><strong id="ucChange">Rp 0</strong></div>
+ </div>
+ <div class="uc-grid" style="margin-top:12px"><button type="button" class="uc-btn secondary" id="ucClearCart">Kosongkan Keranjang</button><button type="button" class="uc-btn" id="ucCheckout">POSTING PENJUALAN</button></div>
+ <div id="ucStatus" class="uc-status" role="status" aria-live="polite">Scanner siap menerima barcode.</div>
+ <div id="ucReceipt" class="uc-panel" hidden></div>
+</section>
+
  <div id="scannerInfoDialog" class="scanner-info-dialog" role="dialog" aria-modal="true" aria-labelledby="scannerInfoTitle" aria-hidden="true">
   <div class="scanner-info-panel">
    <div class="scanner-info-head"><h2 id="scannerInfoTitle">Informasi Scanner</h2><button id="scannerInfoClose" class="scanner-info-close" type="button" aria-label="Tutup informasi">×</button></div>
@@ -345,6 +386,85 @@ function submitToServerBridge_(mode,requestId,payload){
  });
 }
 
+
+const UC={cart:[],busy:false,lastPosted:null,pendingCheckout:null};
+try{const pending=JSON.parse(sessionStorage.getItem('apotek_unified_cashier_pending')||'null');if(pending&&pending.sale&&pending.requestId){UC.pendingCheckout=pending;UC.cart=Array.isArray(pending.cart)?pending.cart:[];}}catch(e){}
+function ucMoney(v){return 'Rp '+Math.round(Number(v)||0).toLocaleString('id-ID')}
+function ucTotals(){
+ const gross=UC.cart.reduce((a,x)=>a+(Number(x.Qty)||0)*(Number(x.HargaJual)||0),0);
+ const discPct=Math.max(0,Math.min(100,Number(document.getElementById('ucDiscount')?.value)||0));
+ const taxPct=Math.max(0,Math.min(100,Number(document.getElementById('ucTax')?.value)||0));
+ const discount=gross*discPct/100,tax=(gross-discount)*taxPct/100,total=gross-discount+tax;
+ const cash=Number(document.getElementById('ucCashReceived')?.value)||0;
+ return {gross,discount,tax,total,cash,change:Math.max(0,cash-total),discPct,taxPct};
+}
+function ucRender(){
+ const host=document.getElementById('ucCartRows');if(!host)return;
+ document.getElementById('ucItemCount').textContent=UC.cart.reduce((a,x)=>a+Number(x.Qty||0),0)+' item';
+ if(!UC.cart.length)host.innerHTML='<div class="uc-muted">Belum ada produk. Pindai barcode untuk menambahkan.</div>';
+ else host.innerHTML=UC.cart.map((x,i)=>'<div class="uc-row"><div style="min-width:0;flex:1"><strong>'+ucEsc(x.NamaProduk)+'</strong><div class="uc-muted">'+ucEsc(x.KodeProduk||x.Barcode||'')+' · '+ucMoney(x.HargaJual)+' / '+ucEsc(x.Satuan||'unit')+'</div><div style="display:flex;align-items:center;gap:6px;margin-top:6px"><button class="uc-btn secondary" data-uc-qty="'+i+'" data-delta="-1" type="button">−</button><strong>'+x.Qty+'</strong><button class="uc-btn secondary" data-uc-qty="'+i+'" data-delta="1" type="button">+</button></div></div><strong>'+ucMoney(x.Qty*x.HargaJual)+'</strong><button class="uc-remove" data-uc-remove="'+i+'" type="button" aria-label="Hapus produk">×</button></div>').join('');
+ const t=ucTotals();document.getElementById('ucGross').textContent=ucMoney(t.gross);document.getElementById('ucDiscountValue').textContent=ucMoney(t.discount);document.getElementById('ucTaxValue').textContent=ucMoney(t.tax);document.getElementById('ucGrandTotal').textContent=ucMoney(t.total);document.getElementById('ucChange').textContent=ucMoney(t.change);
+}
+function ucEsc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function ucStatus(msg,error=false){const el=document.getElementById('ucStatus');if(el){el.textContent=msg;el.style.color=error?'#ffaaa8':'#9debd7'}}
+function ucRequestId(){return (window.crypto&&window.crypto.randomUUID)?window.crypto.randomUUID():'uc-'+Date.now()+'-'+Math.random().toString(36).slice(2)}
+async function ucApi(action,payload){return submitToServerBridge_('kasir_api',ucRequestId(),Object.assign({action},payload||{}))}
+async function ucAddBarcode(code){
+ if(UC.pendingCheckout)throw new Error('Ada transaksi yang belum menerima konfirmasi. Gunakan POSTING PENJUALAN kembali untuk memeriksa transaksi yang sama.');
+ const normCode=norm(code);if(!normCode)return;
+ ucStatus('Mencari produk '+normCode+' pada database…');
+ try{
+  const r=await ucApi('lookup',{barcode:normCode});const p=r.product;
+  if(!p)throw new Error('Produk tidak ditemukan.');
+  if(Number(p.Stok||0)<=0)throw new Error('Stok produk habis.');
+  if(String(p.JenisObat||'').toLowerCase()==='keras'){
+   document.getElementById('ucTransactionType').value='Resep';document.getElementById('ucPrescriptionWrap').style.display='';
+   if(!String(document.getElementById('ucPrescription').value||'').trim())throw new Error('Produk '+p.NamaProduk+' merupakan obat keras. Isi nomor resep sebelum menambahkannya ke keranjang.');
+  }
+  const old=UC.cart.find(x=>String(x.ProdukID)===String(p.ID));const next=Number(old?.Qty||0)+1;
+  if(next>Number(p.Stok||0))throw new Error('Stok tidak mencukupi. Stok tersedia: '+p.Stok);
+  if(old)old.Qty=next;else UC.cart.push({ProdukID:p.ID,KodeProduk:p.KodeProduk,NamaProduk:p.NamaProduk,Barcode:p.Barcode,Qty:1,HargaJual:Number(p.HargaJual||0),Satuan:p.Satuan||'',Stok:Number(p.Stok||0),JenisObat:p.JenisObat||'Bebas'});
+  ucRender();ucStatus('✓ '+p.NamaProduk+' ditambahkan. Keranjang tersinkron pada popup ini.');return p;
+ }catch(e){ucStatus(e.message||String(e),true);throw e}
+}
+async function ucCheckout(){
+ if(UC.busy)return;if(!UC.cart.length){ucStatus('Keranjang masih kosong.',true);return}
+ const t=ucTotals(),method=document.getElementById('ucPayment').value,kind=document.getElementById('ucTransactionType').value,rx=String(document.getElementById('ucPrescription').value||'').trim();
+ if(!UC.pendingCheckout&&kind==='Resep'&&!rx){ucStatus('Nomor resep wajib diisi.',true);return}
+ if(!UC.pendingCheckout&&method==='Cash'&&t.cash<t.total){ucStatus('Uang diterima belum mencukupi total pembayaran.',true);return}
+ const btn=document.getElementById('ucCheckout');UC.busy=true;btn.disabled=true;btn.textContent='MEMPROSES…';
+ let requestId,sale;
+ if(UC.pendingCheckout){requestId=UC.pendingCheckout.requestId;sale=UC.pendingCheckout.sale;}
+ else{
+  requestId=ucRequestId();const now=new Date(),localDate=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  const noStruk='PJ-MOB-'+now.getTime()+'-'+requestId.slice(-6);
+  sale={tanggal:localDate,noStruk,customer:String(document.getElementById('ucCustomer').value||'Umum'),discountPercent:t.discPct,taxPercent:t.taxPct,metodePembayaran:method,jenisTransaksi:kind,noResep:kind==='Resep'?rx:'',idempotencyKey:'MOBILE-CASHIER:'+requestId,items:UC.cart.map(x=>({ProdukID:x.ProdukID,Qty:Number(x.Qty),HargaJual:Number(x.HargaJual)}))};
+  UC.pendingCheckout={requestId,sale,cart:UC.cart};try{sessionStorage.setItem('apotek_unified_cashier_pending',JSON.stringify(UC.pendingCheckout))}catch(e){}
+ }
+ try{
+  const result=await submitToServerBridge_('kasir_api',requestId,{action:'checkout',sale});
+  UC.lastPosted=result.sale;UC.pendingCheckout=null;try{sessionStorage.removeItem('apotek_unified_cashier_pending')}catch(e){}document.getElementById('ucReceipt').hidden=false;
+  document.getElementById('ucReceipt').innerHTML='<strong>✓ Transaksi berhasil diposting</strong><div class="uc-muted">No. Struk: '+ucEsc(result.sale.noStruk)+'</div><div style="font-size:22px;font-weight:800;margin-top:8px">'+ucMoney(result.sale.total)+'</div><div class="uc-muted">'+ucEsc(result.sale.metodePembayaran)+' · '+ucEsc(result.sale.items?.length||0)+' baris transaksi</div>';
+  UC.cart=[];ucRender();ucStatus('Transaksi tersimpan. Daftar Penjualan dan Transaksi Terbaru menggunakan data server yang sama.');
+  try{const target=embedded?window.parent:window.opener;target?.postMessage({type:'APOTEK_UNIFIED_CASHIER_SALE_POSTED',nonce,requestId,sale:result.sale},parentOrigin)}catch(e){}
+ }catch(e){ucStatus('Konfirmasi belum diterima: '+(e.message||e)+'. Keranjang dan ID transaksi dipertahankan. Tekan POSTING PENJUALAN kembali untuk memeriksa status transaksi yang sama.',true)}
+ finally{UC.busy=false;btn.disabled=false;btn.textContent='POSTING PENJUALAN'}
+}
+function ucBind(){
+ document.getElementById('ucCartRows')?.addEventListener('click',e=>{
+  const q=e.target.closest('[data-uc-qty]'),r=e.target.closest('[data-uc-remove]');
+  if(UC.pendingCheckout){ucStatus('Periksa kembali status posting transaksi sebelum mengubah keranjang.',true);return}
+  if(q){const i=Number(q.dataset.ucQty),delta=Number(q.dataset.delta);if(UC.cart[i]){UC.cart[i].Qty=Math.max(0,UC.cart[i].Qty+delta);if(!UC.cart[i].Qty)UC.cart.splice(i,1);ucRender()}}
+  if(r){UC.cart.splice(Number(r.dataset.ucRemove),1);ucRender()}
+ });
+ ['ucDiscount','ucTax','ucCashReceived'].forEach(id=>document.getElementById(id)?.addEventListener('input',ucRender));
+ document.getElementById('ucTransactionType')?.addEventListener('change',e=>{document.getElementById('ucPrescriptionWrap').style.display=e.target.value==='Resep'?'':'none'});
+ document.getElementById('ucPayment')?.addEventListener('change',e=>{document.getElementById('ucCashWrap').style.display=e.target.value==='Cash'?'':'none';ucRender()});
+ document.getElementById('ucClearCart')?.addEventListener('click',()=>{if(UC.pendingCheckout){ucStatus('Transaksi masih menunggu konfirmasi server.',true);return}if(confirm('Kosongkan seluruh keranjang?')){UC.cart=[];ucRender();ucStatus('Keranjang dikosongkan.')}});
+ document.getElementById('ucCheckout')?.addEventListener('click',ucCheckout);
+}
+ucBind();
+
 function norm(v){return String(v||'').trim().replace(/\s+/g,'').toUpperCase()}
 function sendCode(raw,source='manual'){
  const code=norm(raw);if(!code)return;
@@ -352,21 +472,9 @@ function sendCode(raw,source='manual'){
  if(!parentReady){setStatus('Belum terhubung dengan aplikasi utama. Tutup scanner lalu buka kembali dari tombol Scan Kamera.',true);return}
  if(source==='hid')setHidMonitor_('ready','Barcode HID berhasil dikenali');
  if(mode==='kasir'){
-  if(barcodePendingTimer){clearInterval(barcodePendingTimer);barcodePendingTimer=null;}
-  const pendingCode=String(window._apotekPendingKasirBarcode||'');
-  if(!barcodePendingRequestId||pendingCode!==code){
-   barcodePendingRequestId=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():'bc-'+Date.now()+'-'+Math.random().toString(36).slice(2);
-   window._apotekPendingKasirBarcode=code;
-  }
-  const requestId=barcodePendingRequestId;setStatus('Mengirim barcode ke antrean server…');
-  submitToServerBridge_('kasir',requestId,{barcode:code}).then(result=>{
-   if(barcodePendingRequestId!==requestId)return;
-   barcodePendingRequestId='';window._apotekPendingKasirBarcode='';setStatus('✓ Barcode diterima server dan masuk antrean Kasir. Kembali ke tab aplikasi untuk memprosesnya.');
-  }).catch(err=>{if(barcodePendingRequestId===requestId){setStatus(String(err.message||err)+ ' ID permintaan dipertahankan; jangan pindai ulang barcode ini. Tekan kirim kembali untuk memeriksa status yang sama.',true)}});
- }else{
-  post('APOTEK_SCANNER_RESULT',{barcode:code});
+  ucAddBarcode(code).then(()=>setStatus('✓ Produk masuk ke Keranjang Kasir pada popup.')).catch(err=>setStatus(err.message||String(err),true));
+  return;
  }
- const manualInput=document.getElementById('manual');if(manualInput)manualInput.value=code;
  if(mode==='product'){
   const productBarcode=document.getElementById('productBarcode');
   if(productBarcode){productBarcode.value=code;setProductSaveStatus('Barcode berhasil dipindai. Lengkapi data produk lalu simpan.');}
@@ -743,6 +851,20 @@ window.addEventListener('message',event=>{
   setStatus('Terhubung ke aplikasi. Siap memindai.');
   const entry=document.getElementById('productEntryCard');
   if(entry)entry.hidden=mode!=='product';
+  const cashier=document.getElementById('unifiedCashierCard');
+  if(cashier)cashier.style.display=mode==='kasir'?'block':'none';
+  if(mode==='kasir'){
+   ucRender();
+   ucApi('config',{}).then(function(cfg){
+    var conf=cfg&&cfg.config||{};
+    if(!UC.pendingCheckout){
+     var disc=document.getElementById('ucDiscount'),tax=document.getElementById('ucTax');
+     if(disc)disc.value=Number(conf.defaultDiscount)||0;
+     if(tax)tax.value=Number(conf.taxPercent)||0;
+     ucRender();
+    }
+   }).catch(function(err){console.warn('[Unified Cashier] Konfigurasi default tidak termuat:',err)});
+  }
   if(mode==='product')applyProductOptions(d.productOptions||{});
  }
  if(d.type==='APOTEK_PRODUCT_SAVE_ACK'){
