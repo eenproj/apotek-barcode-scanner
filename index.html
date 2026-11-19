@@ -332,8 +332,16 @@ function submitToServerBridge_(mode,requestId,payload){
   const fields={token:sessionToken,mode,requestId,payload:JSON.stringify(body)};
   Object.keys(fields).forEach(k=>{const input=document.createElement('input');input.type='hidden';input.name=k;input.value=String(fields[k]);form.appendChild(input)});
   const timeout=setTimeout(()=>{window.removeEventListener('message',onMessage);form.remove();reject(new Error('Server belum memberikan konfirmasi. Periksa koneksi dan status data sebelum mencoba ulang.'))},25000);
-  function onMessage(event){if(event.data?.channel!=='APOTEK_BARCODE_HTTP'||String(event.data?.result?.requestId||'')!==String(requestId))return;clearTimeout(timeout);window.removeEventListener('message',onMessage);form.remove();const r=event.data.result||{};if(r.ok)resolve(r);else reject(new Error(r.message||'Server menolak permintaan barcode.'))}
-  window.addEventListener('message',onMessage);document.body.appendChild(form);form.submit();
+  function onMessage(event){
+   if(event.data?.channel!=='APOTEK_BARCODE_HTTP'||String(event.data?.result?.requestId||'')!==String(requestId))return;
+   clearTimeout(timeout);window.removeEventListener('message',onMessage);form.remove();
+   const r=event.data.result||{};
+   if(r.ok)resolve(r);else reject(new Error(r.message||'Server menolak permintaan barcode.'));
+  }
+  window.addEventListener('message',onMessage);
+  // Pastikan target iframe telah terpasang sebelum POST dijalankan.
+  document.body.appendChild(form);
+  requestAnimationFrame(()=>{try{form.submit()}catch(e){clearTimeout(timeout);window.removeEventListener('message',onMessage);form.remove();reject(new Error('Gagal mengirim formulir ke server Apps Script: '+(e.message||e)))}});
  });
 }
 
@@ -345,12 +353,16 @@ function sendCode(raw,source='manual'){
  if(source==='hid')setHidMonitor_('ready','Barcode HID berhasil dikenali');
  if(mode==='kasir'){
   if(barcodePendingTimer){clearInterval(barcodePendingTimer);barcodePendingTimer=null;}
-  barcodePendingRequestId=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():'bc-'+Date.now()+'-'+Math.random().toString(36).slice(2);
+  const pendingCode=String(window._apotekPendingKasirBarcode||'');
+  if(!barcodePendingRequestId||pendingCode!==code){
+   barcodePendingRequestId=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():'bc-'+Date.now()+'-'+Math.random().toString(36).slice(2);
+   window._apotekPendingKasirBarcode=code;
+  }
   const requestId=barcodePendingRequestId;setStatus('Mengirim barcode ke antrean server…');
   submitToServerBridge_('kasir',requestId,{barcode:code}).then(result=>{
    if(barcodePendingRequestId!==requestId)return;
-   barcodePendingRequestId='';setStatus('✓ Barcode diterima server dan masuk antrean Kasir. Kembali ke tab aplikasi untuk memprosesnya.');
-  }).catch(err=>{if(barcodePendingRequestId===requestId){barcodePendingRequestId='';setStatus(String(err.message||err),true)}});
+   barcodePendingRequestId='';window._apotekPendingKasirBarcode='';setStatus('✓ Barcode diterima server dan masuk antrean Kasir. Kembali ke tab aplikasi untuk memprosesnya.');
+  }).catch(err=>{if(barcodePendingRequestId===requestId){setStatus(String(err.message||err)+ ' ID permintaan dipertahankan; jangan pindai ulang barcode ini. Tekan kirim kembali untuk memeriksa status yang sama.',true)}});
  }else{
   post('APOTEK_SCANNER_RESULT',{barcode:code});
  }
