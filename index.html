@@ -264,8 +264,8 @@ const embedded=window.parent!==window;
 const parentWindow=embedded?window.parent:window.opener;
 if(embedded)document.documentElement.classList.add('apotek-scanner-embedded');
 let qr=null, cameras=[], cameraIndex=0, cameraSwitchRequested=false, cameraFacingMode='environment', lastCode='', lastAt=0, parentReady=false;
-let bridgeUrl='',sessionToken='',bridgeFrame=null,bridgeForm=null,scannerInitRetryTimer=null;
-let productSaveRequestId='', productSaveAckTimer=null, productSaveResultTimer=null, productSaveRetryTimer=null, productSaveRetryCount=0;
+let bridgeUrl='',sessionToken='',bridgeClientId='',bridgeFrame=null,bridgeForm=null,scannerInitRetryTimer=null;
+let productSaveRequestId='', productPendingPayloadJson='', productSaveAckTimer=null, productSaveResultTimer=null, productSaveRetryTimer=null, productSaveRetryCount=0;
 let barcodePendingRequestId='',barcodePendingTimer=null,barcodeRetryCount=0;
 const SCANNER_INPUT_ENGINE={buffer:'',lastAt:0,startAt:0,gapMs:120,maxLength:128};
 const SCAN_PROFILES={normal:{fps:12,box:.78,max:380,angleStep:2,engineFps:3},high:{fps:18,box:.86,max:480,angleStep:1,engineFps:5},ultra:{fps:24,box:.92,max:560,angleStep:1,engineFps:7}};
@@ -328,7 +328,8 @@ function submitToServerBridge_(mode,requestId,payload){
   const frameName='apotekBarcodeBridgeFrame';let frame=document.getElementById(frameName);
   if(!frame){frame=document.createElement('iframe');frame.name=frameName;frame.id=frameName;frame.style.display='none';document.body.appendChild(frame)}
   const form=document.createElement('form');form.method='POST';form.action=bridgeUrl;form.target=frameName;form.style.display='none';
-  const fields={token:sessionToken,mode,requestId,payload:JSON.stringify(payload||{})};
+  const body=Object.assign({},payload||{},{clientId:bridgeClientId});
+  const fields={token:sessionToken,mode,requestId,payload:JSON.stringify(body)};
   Object.keys(fields).forEach(k=>{const input=document.createElement('input');input.type='hidden';input.name=k;input.value=String(fields[k]);form.appendChild(input)});
   const timeout=setTimeout(()=>{window.removeEventListener('message',onMessage);form.remove();reject(new Error('Server belum memberikan konfirmasi. Periksa koneksi dan status data sebelum mencoba ulang.'))},25000);
   function onMessage(event){if(event.data?.channel!=='APOTEK_BARCODE_HTTP'||String(event.data?.result?.requestId||'')!==String(requestId))return;clearTimeout(timeout);window.removeEventListener('message',onMessage);form.remove();const r=event.data.result||{};if(r.ok)resolve(r);else reject(new Error(r.message||'Server menolak permintaan barcode.'))}
@@ -339,7 +340,7 @@ function submitToServerBridge_(mode,requestId,payload){
 function norm(v){return String(v||'').trim().replace(/\s+/g,'').toUpperCase()}
 function sendCode(raw,source='manual'){
  const code=norm(raw);if(!code)return;
- const now=Date.now();if(code===lastCode&&now-lastAt<1000)return;lastCode=code;lastAt=now;
+ const now=Date.now();if(code===lastCode&&now-lastAt<3000)return;lastCode=code;lastAt=now;
  if(!parentReady){setStatus('Belum terhubung dengan aplikasi utama. Tutup scanner lalu buka kembali dari tombol Scan Kamera.',true);return}
  if(source==='hid')setHidMonitor_('ready','Barcode HID berhasil dikenali');
  if(mode==='kasir'){
@@ -663,18 +664,27 @@ function submitProductEntry(event){
  if(!payload.KategoriID||!payload.SatuanID){setProductSaveStatus('Kategori dan Satuan wajib dipilih.','error');return}
  if(Number(payload.HargaBeli)<0||Number(payload.HargaJual)<0||Number(payload.StokMinimal)<0){setProductSaveStatus('Harga dan stok minimal tidak boleh negatif.','error');return}
  const btn=document.getElementById('saveProductFromScanner');btn.disabled=true;
- productSaveRequestId=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():'prd-'+Date.now()+'-'+Math.random().toString(36).slice(2);
+ const payloadJson=JSON.stringify(payload);
+ if(productSaveRequestId&&productPendingPayloadJson&&productPendingPayloadJson!==payloadJson){
+  btn.disabled=false;
+  setProductSaveStatus('Permintaan sebelumnya belum memperoleh konfirmasi. Data tidak boleh diubah atau dikirim dengan ID baru. Pulihkan data yang sama lalu tekan Simpan Produk untuk memeriksa ulang hasil server.','error');
+  return;
+ }
+ if(!productSaveRequestId){
+  productSaveRequestId=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():'prd-'+Date.now()+'-'+Math.random().toString(36).slice(2);
+  productPendingPayloadJson=payloadJson;
+ }
  setProductSaveStatus('Mengirim permintaan ke aplikasi Apotek…');
  submitToServerBridge_('product',productSaveRequestId,payload).then(result=>{
   const btn=document.getElementById('saveProductFromScanner');if(btn)btn.disabled=false;
   productSavedCount++;document.getElementById('productSavedCount').textContent=productSavedCount+' tersimpan';
   const row=result.result?.row||{};const savedCode=String(row.KodeProduk||payload.KodeProduk||'');
   setProductSaveStatus('✓ Produk '+payload.NamaProduk+' berhasil disimpan'+(savedCode?' dengan kode '+savedCode:'')+'.','success');
-  productSaveRequestId='';clearProductEntry();setProductSaveStatus('✓ Produk berhasil disimpan. Silakan pindai produk berikutnya.','success');
+  productSaveRequestId='';productPendingPayloadJson='';clearProductEntry();setProductSaveStatus('✓ Produk berhasil disimpan. Silakan pindai produk berikutnya.','success');
  }).catch(err=>{
   const btn=document.getElementById('saveProductFromScanner');if(btn)btn.disabled=false;
   setProductSaveStatus(String(err.message||err||'Gagal menyimpan produk.'),'error');
-  // Pertahankan requestId agar pengguna tidak membuat duplikasi tanpa memeriksa hasil server.
+  // Pertahankan requestId + payload identik agar percobaan ulang mengambil hasil server yang sama (idempotent).
  });
 }
 document.getElementById('productEntryForm').addEventListener('submit',submitProductEntry);
@@ -713,10 +723,10 @@ window.addEventListener('message',event=>{
  const d=event.data;if(!d||typeof d!=='object'||d.nonce!==nonce)return;
  if(d.type==='APOTEK_SCANNER_INIT'){
   parentReady=true;
-  bridgeUrl=String(d.bridgeUrl||'').trim();sessionToken=String(d.sessionToken||'').trim();
+  bridgeUrl=String(d.bridgeUrl||'').trim();sessionToken=String(d.sessionToken||'').trim();bridgeClientId=String(d.clientId||'').trim();
   if(scannerInitRetryTimer){clearInterval(scannerInitRetryTimer);scannerInitRetryTimer=null;}
   console.info('[Barcode Bridge] Inisialisasi diterima:',{bridgeUrlReceived:!!bridgeUrl,sessionTokenReceived:!!sessionToken,bridgeOrigin:(()=>{try{return new URL(bridgeUrl).origin}catch(e){return ''}})()});
-  if(!bridgeUrl||!sessionToken){const missing=[];if(!bridgeUrl)missing.push('URL server');if(!sessionToken)missing.push('token sesi');setStatus('Aplikasi terhubung, tetapi konfigurasi '+missing.join(' dan ')+' belum diterima. Muat ulang aplikasi Apotek dan buka scanner kembali.',true);setProductSaveStatus('Konfigurasi '+missing.join(' dan ')+' belum diterima dari aplikasi Apotek. Muat ulang aplikasi dan buka scanner kembali.','error');return;}
+  if(!bridgeUrl||!sessionToken||!bridgeClientId){const missing=[];if(!bridgeUrl)missing.push('URL server');if(!sessionToken)missing.push('token sesi');if(!bridgeClientId)missing.push('identitas perangkat');setStatus('Aplikasi terhubung, tetapi konfigurasi '+missing.join(' dan ')+' belum diterima. Muat ulang aplikasi Apotek dan buka scanner kembali.',true);setProductSaveStatus('Konfigurasi '+missing.join(' dan ')+' belum diterima dari aplikasi Apotek. Muat ulang aplikasi dan buka scanner kembali.','error');return;}
   mode=d.mode==='product'?'product':'kasir';
   setStatus('Terhubung ke aplikasi. Siap memindai.');
   const entry=document.getElementById('productEntryCard');
