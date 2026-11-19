@@ -264,7 +264,7 @@ const embedded=window.parent!==window;
 const parentWindow=embedded?window.parent:window.opener;
 if(embedded)document.documentElement.classList.add('apotek-scanner-embedded');
 let qr=null, cameras=[], cameraIndex=0, cameraSwitchRequested=false, cameraFacingMode='environment', lastCode='', lastAt=0, parentReady=false;
-let bridgeUrl='',sessionToken='',bridgeFrame=null,bridgeForm=null;
+let bridgeUrl='',sessionToken='',bridgeFrame=null,bridgeForm=null,scannerInitRetryTimer=null;
 let productSaveRequestId='', productSaveAckTimer=null, productSaveResultTimer=null, productSaveRetryTimer=null, productSaveRetryCount=0;
 let barcodePendingRequestId='',barcodePendingTimer=null,barcodeRetryCount=0;
 const SCANNER_INPUT_ENGINE={buffer:'',lastAt:0,startAt:0,gapMs:120,maxLength:128};
@@ -319,7 +319,11 @@ function post(type,extra){
 }
 
 function submitToServerBridge_(mode,requestId,payload){
- if(!bridgeUrl||!sessionToken)return Promise.reject(new Error('Koneksi server scanner belum siap. Tutup scanner dan buka kembali dari aplikasi Apotek.'));
+ if(!bridgeUrl||!sessionToken){
+  const missing=[];if(!bridgeUrl)missing.push('URL deployment Apps Script');if(!sessionToken)missing.push('token sesi login');
+  console.error('[Barcode Bridge] Konfigurasi belum diterima dari aplikasi induk:',{bridgeUrlReceived:!!bridgeUrl,sessionTokenReceived:!!sessionToken,parentReady,origin:parentOrigin});
+  return Promise.reject(new Error('Konfigurasi server scanner belum lengkap: '+missing.join(' dan ')+'. Tutup scanner, kembali ke aplikasi Apotek, lalu buka scanner kembali. Jika berulang, deploy ulang Code.gs dan Index.html sebagai versi Web App yang sama.'));
+ }
  return new Promise((resolve,reject)=>{
   const frameName='apotekBarcodeBridgeFrame';let frame=document.getElementById(frameName);
   if(!frame){frame=document.createElement('iframe');frame.name=frameName;frame.id=frameName;frame.style.display='none';document.body.appendChild(frame)}
@@ -709,7 +713,10 @@ window.addEventListener('message',event=>{
  const d=event.data;if(!d||typeof d!=='object'||d.nonce!==nonce)return;
  if(d.type==='APOTEK_SCANNER_INIT'){
   parentReady=true;
-  bridgeUrl=String(d.bridgeUrl||'');sessionToken=String(d.sessionToken||'');
+  bridgeUrl=String(d.bridgeUrl||'').trim();sessionToken=String(d.sessionToken||'').trim();
+  if(scannerInitRetryTimer){clearInterval(scannerInitRetryTimer);scannerInitRetryTimer=null;}
+  console.info('[Barcode Bridge] Inisialisasi diterima:',{bridgeUrlReceived:!!bridgeUrl,sessionTokenReceived:!!sessionToken,bridgeOrigin:(()=>{try{return new URL(bridgeUrl).origin}catch(e){return ''}})()});
+  if(!bridgeUrl||!sessionToken){const missing=[];if(!bridgeUrl)missing.push('URL server');if(!sessionToken)missing.push('token sesi');setStatus('Aplikasi terhubung, tetapi konfigurasi '+missing.join(' dan ')+' belum diterima. Muat ulang aplikasi Apotek dan buka scanner kembali.',true);setProductSaveStatus('Konfigurasi '+missing.join(' dan ')+' belum diterima dari aplikasi Apotek. Muat ulang aplikasi dan buka scanner kembali.','error');return;}
   mode=d.mode==='product'?'product':'kasir';
   setStatus('Terhubung ke aplikasi. Siap memindai.');
   const entry=document.getElementById('productEntryCard');
@@ -811,7 +818,10 @@ if(!nonce||!allowedParent||!parentWindow){
  document.getElementById('sendManual').disabled=true;
 }
 else{
- post('APOTEK_SCANNER_READY');
+ // Ulangi handshake: tab aplikasi dapat baru aktif setelah scanner selesai dimuat.
+ const requestInit=()=>post('APOTEK_SCANNER_READY');
+ requestInit();
+ scannerInitRetryTimer=setInterval(()=>{if(!parentReady)requestInit();else{clearInterval(scannerInitRetryTimer);scannerInitRetryTimer=null;}},1200);
  startCamera();
 }
 })();
