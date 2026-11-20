@@ -363,76 +363,50 @@ function submitToServerBridge_(mode,requestId,payload){
  if(!bridgeUrl||!sessionToken){
   const missing=[];if(!bridgeUrl)missing.push('URL deployment Apps Script');if(!sessionToken)missing.push('token sesi login');
   console.error('[Barcode Bridge] Konfigurasi belum diterima dari aplikasi induk:',{bridgeUrlReceived:!!bridgeUrl,sessionTokenReceived:!!sessionToken,parentReady,origin:parentOrigin});
-  return Promise.reject(new Error('Konfigurasi server scanner belum lengkap: '+missing.join(' dan ')+'. Tutup scanner, kembali ke aplikasi Apotek, lalu buka scanner kembali. Jika berulang, deploy ulang Code.gs dan Index.html sebagai versi Web App yang sama.'));
+  return Promise.reject(new Error('Konfigurasi server scanner belum lengkap: '+missing.join(' dan ')+'. Tutup scanner, kembali ke aplikasi Apotek, lalu buka scanner kembali.'));
  }
  return new Promise((resolve,reject)=>{
-  // Satu iframe per request. Sebelumnya seluruh request memakai satu iframe bernama
-  // sama; request config/lookup/checkout yang berdekatan dapat saling menavigasi
-  // iframe dan membatalkan respons request yang lebih dahulu pada browser mobile.
+  const requestStartedAt=Date.now();
+  const requestStartedPerf=(window.performance&&performance.now)?performance.now():0;
   const safeId=String(requestId||'').replace(/[^A-Za-z0-9_-]/g,'').slice(0,72)||('r'+Date.now());
   const frameName='apotekBarcodeBridgeFrame_'+safeId;
   const frame=document.createElement('iframe');
   frame.name=frameName;frame.id=frameName;frame.style.display='none';
   const form=document.createElement('form');form.method='POST';form.action=bridgeUrl;form.target=frameName;form.style.display='none';
   const body=Object.assign({},payload||{},{clientId:bridgeClientId});
-  const fields={token:sessionToken,mode,requestId,payload:JSON.stringify(body)};
-  console.info('[APOTEK_BRIDGE_DIAG] POST_START', {mode,requestId,bridgeOrigin:(()=>{try{return new URL(bridgeUrl).origin}catch(e){return 'invalid-url'}})(),payloadLength:fields.payload.length});
+  const fields={token:sessionToken,mode,requestId,payload:JSON.stringify(body),clientStartedAt:String(requestStartedAt)};
+  let settled=false,iframeLoadCount=0,formSubmitted=false,postSubmittedAt=0,postSubmittedPerf=0,iframeFirstLoadAt=0,ackReceivedAt=0;
+  const trace={mode,requestId,clientStartedAt:requestStartedAt,clientStartedPerf:requestStartedPerf};
+  console.info('[APOTEK_E2E] REQUEST_START',trace);
+  console.info('[APOTEK_BRIDGE_DIAG] POST_START',{mode,requestId,bridgeOrigin:(()=>{try{return new URL(bridgeUrl).origin}catch(e){return 'invalid-url'}})(),payloadLength:fields.payload.length});
   Object.keys(fields).forEach(k=>{const input=document.createElement('input');input.type='hidden';input.name=k;input.value=String(fields[k]);form.appendChild(input)});
-  let settled=false,iframeLoadCount=0,formSubmitted=false;
-  frame.addEventListener('load',()=>{iframeLoadCount++;console.info('[APOTEK_BRIDGE_DIAG] IFRAME_LOAD',{mode,requestId,loadCount:iframeLoadCount,frameUrl:(()=>{try{return frame.contentWindow.location.href}catch(e){return 'cross-origin'}})()});});
-  function cleanup(){
-   window.removeEventListener('message',onMessage);
-   form.remove();
-   // Jangan menghapus iframe sebelum respons diterima; setelah selesai, bersihkan.
-   frame.remove();
-  }
-  function finish(fn,value){
-   if(settled)return;settled=true;clearTimeout(timeout);cleanup();fn(value);
-  }
-  const timeout=setTimeout(()=>{console.error('[APOTEK_BRIDGE_DIAG] TIMEOUT',{mode,requestId,formSubmitted,iframeLoadCount,ackState:'NOT_RECEIVED',recoveryHint:'Periksa MESSAGE_OBSERVED dan MESSAGE_REJECTED_*'});finish(reject,new Error('Server belum memberikan konfirmasi setelah 40 detik. Diagnostik: formSubmitted='+formSubmitted+', iframeLoadCount='+iframeLoadCount+'. Operasi server mungkin sudah selesai; jangan pindai ulang sebelum memeriksa status request.'));},40000);
+  function elapsed(){return Math.round(((window.performance&&performance.now)?performance.now():requestStartedPerf)-requestStartedPerf)}
+  function cleanup(){window.removeEventListener('message',onMessage);form.remove();frame.remove()}
+  function finish(fn,value){if(settled)return;settled=true;clearTimeout(timeout);const end=Date.now();console.info('[APOTEK_E2E] REQUEST_FINISH',{mode,requestId,outcome:fn===resolve?'ACK_RECEIVED':'FAILED',clientTotalMs:elapsed(),wallTotalMs:end-requestStartedAt,postToAckMs:ackReceivedAt&&postSubmittedPerf?Math.round(ackReceivedAt-postSubmittedPerf):null,iframeLoadCount,serverTrace:value&&value._e2e?value._e2e:null});cleanup();fn(value)}
+  frame.addEventListener('load',()=>{iframeLoadCount++;if(!iframeFirstLoadAt)iframeFirstLoadAt=Date.now();console.info('[APOTEK_BRIDGE_DIAG] IFRAME_LOAD',{mode,requestId,loadCount:iframeLoadCount,elapsedMs:elapsed(),frameUrl:(()=>{try{return frame.contentWindow.location.href}catch(e){return 'cross-origin'}})()});});
+  const timeout=setTimeout(()=>{console.error('[APOTEK_E2E] TIMEOUT',{mode,requestId,formSubmitted,iframeLoadCount,clientElapsedMs:elapsed(),postSubmittedAt,serverAckState:'NOT_RECEIVED',hint:'Cocokkan requestId dengan doPost_ENTER/doPost_PROCESSED dan server timing.'});finish(reject,new Error('Server belum memberikan konfirmasi setelah 40 detik. Diagnostik: formSubmitted='+formSubmitted+', iframeLoadCount='+iframeLoadCount+', clientElapsedMs='+elapsed()+'. Periksa requestId pada Apps Script Executions; jangan ulangi operasi yang belum jelas statusnya.'));},40000);
   function onMessage(event){
-   // Observer v5.3.3: catat SEMUA message saat request aktif, termasuk envelope
-   // yang tidak dikenal. Jangan pernah menyelesaikan request hanya berdasarkan
-   // kemiripan isi pesan; source iframe dan requestId tetap wajib cocok.
-   const d=event.data;
-   const channel=(d&&typeof d==='object')?String(d.channel||d.type||''):'[non-object]';
+   const d=event.data,channel=(d&&typeof d==='object')?String(d.channel||d.type||''):'[non-object]';
    const nested=(d&&typeof d==='object'&&d.result&&typeof d.result==='object')?d.result:null;
    const receivedId=String((nested&&nested.requestId)||(d&&typeof d==='object'&&d.requestId)||'');
-   // Google Apps Script ContentService redirects the iframe response to a
-   // script.googleusercontent.com origin. In some browsers the postMessage
-   // source WindowProxy is not strictly equal to the original iframe proxy,
-   // although the trusted origin and unguessable requestId still correlate it.
    const sourceMatches=event.source===frame.contentWindow;
-   const messageOrigin=String(event.origin||'');
-   let trustedOrigin=false;
-   try{
-    const u=new URL(messageOrigin);
-    const h=u.hostname.toLowerCase();
-    trustedOrigin=u.protocol==='https:' && (
-      h==='script.google.com' ||
-      h.endsWith('.googleusercontent.com') ||
-      h.endsWith('-script.googleusercontent.com')
-    );
-   }catch(e){trustedOrigin=false;}
-   console.info('[APOTEK_BRIDGE_TRACE] MESSAGE_OBSERVED',{origin:messageOrigin,trustedOrigin,sourceMatches,channel,expectedRequestId:String(requestId),receivedRequestId:receivedId,dataType:typeof d,keys:(d&&typeof d==='object')?Object.keys(d).slice(0,12):[]});
-   if(!trustedOrigin){console.warn('[APOTEK_BRIDGE_TRACE] MESSAGE_REJECTED_ORIGIN',{mode,requestId,origin:messageOrigin,channel,receivedRequestId});return;}
-   if(channel!=='APOTEK_BARCODE_HTTP'){console.warn('[APOTEK_BRIDGE_TRACE] MESSAGE_REJECTED_CHANNEL',{mode,requestId,channel,receivedRequestId});return;}
-   if(receivedId!==String(requestId)){console.warn('[APOTEK_BRIDGE_TRACE] MESSAGE_REJECTED_REQUEST_ID',{mode,requestId,receivedRequestId});return;}
-   // sourceMatches is retained for diagnostics only; it is not a rejection
-   // condition because the GAS ContentService redirect can change the sender
-   // proxy observed by the parent window. Origin + requestId + channel gate ACK.
-   const r=nested||{};
-   console.info('[APOTEK_BRIDGE_DIAG] MESSAGE_RECEIVED',{origin:event.origin,trustedOrigin,sourceMatches,mode,expectedRequestId:requestId,receivedRequestId:receivedId,ok:!!r.ok});
-   if(r.ok){if(r.serverElapsedMs!==undefined)console.info('[Unified Cashier] Server lookup selesai dalam '+r.serverElapsedMs+' ms');finish(resolve,r)}
-   else finish(reject,new Error(r.message||'Server menolak permintaan barcode.'));
+   const messageOrigin=String(event.origin||'');let trustedOrigin=false;
+   try{const u=new URL(messageOrigin),h=u.hostname.toLowerCase();trustedOrigin=u.protocol==='https:'&&(h==='script.google.com'||h==='googleusercontent.com'||h.endsWith('.googleusercontent.com'));}catch(e){trustedOrigin=false;}
+   console.info('[APOTEK_E2E] MESSAGE_OBSERVED',{mode,requestId,origin:messageOrigin,trustedOrigin,sourceMatches,channel,expectedRequestId:String(requestId),receivedRequestId:receivedId,elapsedMs:elapsed(),keys:(d&&typeof d==='object')?Object.keys(d).slice(0,12):[]});
+   if(!trustedOrigin){console.warn('[APOTEK_E2E] MESSAGE_REJECTED_ORIGIN',{mode,requestId,origin:messageOrigin});return;}
+   if(channel!=='APOTEK_BARCODE_HTTP'){console.warn('[APOTEK_E2E] MESSAGE_REJECTED_CHANNEL',{mode,requestId,channel});return;}
+   if(receivedId!==String(requestId)){console.warn('[APOTEK_E2E] MESSAGE_REJECTED_REQUEST_ID',{mode,requestId,receivedRequestId:receivedId});return;}
+   // Google ContentService redirect may alter event.source identity. Keep it as
+   // telemetry; trust is based on HTTPS Google response origin + unguessable ID.
+   const r=nested||{};ackReceivedAt=(window.performance&&performance.now)?performance.now():0;
+   console.info('[APOTEK_E2E] ACK_RECEIVED',{mode,requestId,clientElapsedMs:elapsed(),sourceMatches,serverTrace:r._e2e||null,serverElapsedMs:r.serverElapsedMs??null});
+   if(r.ok){finish(resolve,r)}else finish(reject,new Error(r.message||'Server menolak permintaan barcode.'));
   }
   window.addEventListener('message',onMessage);
-  document.body.appendChild(frame);
-  document.body.appendChild(form);
-  requestAnimationFrame(()=>{if(settled)return;try{formSubmitted=true;console.info('[APOTEK_BRIDGE_DIAG] FORM_SUBMIT',{mode,requestId,target:frameName});form.submit()}catch(e){finish(reject,new Error('Gagal mengirim formulir ke server Apps Script: '+(e.message||e)))}});
+  document.body.appendChild(frame);document.body.appendChild(form);
+  requestAnimationFrame(()=>{if(settled)return;try{formSubmitted=true;postSubmittedAt=Date.now();postSubmittedPerf=(window.performance&&performance.now)?performance.now():0;console.info('[APOTEK_BRIDGE_DIAG] FORM_SUBMIT',{mode,requestId,target:frameName,elapsedMs:elapsed(),clientSubmittedAt:postSubmittedAt});form.submit();}catch(e){finish(reject,new Error('Gagal mengirim formulir ke server Apps Script: '+(e.message||e)));}});
  });
 }
-
 
 const UC={cart:[],busy:false,lastPosted:null,pendingCheckout:null,apiQueue:Promise.resolve(),apiQueueDepth:0};
 try{const pending=JSON.parse(sessionStorage.getItem('apotek_unified_cashier_pending')||'null');if(pending&&pending.sale&&pending.requestId){UC.pendingCheckout=pending;UC.cart=Array.isArray(pending.cart)?pending.cart:[];}}catch(e){}
