@@ -362,29 +362,60 @@ function post(type,extra){
 function submitToServerBridge_(mode,requestId,payload){
  if(!bridgeUrl||!sessionToken){
   const missing=[];if(!bridgeUrl)missing.push('URL deployment Apps Script');if(!sessionToken)missing.push('token sesi login');
-  console.error('[Barcode Bridge] Konfigurasi belum diterima dari aplikasi induk:',{bridgeUrlReceived:!!bridgeUrl,sessionTokenReceived:!!sessionToken,parentReady,origin:parentOrigin});
+  console.error('[Barcode Bridge] Konfigurasi belum diterima:',{bridgeUrlReceived:!!bridgeUrl,sessionTokenReceived:!!sessionToken,parentReady,origin:parentOrigin});
   return Promise.reject(new Error('Konfigurasi server scanner belum lengkap: '+missing.join(' dan ')+'. Tutup scanner, kembali ke aplikasi Apotek, lalu buka scanner kembali.'));
  }
  return new Promise((resolve,reject)=>{
-  const requestStartedAt=Date.now();
-  const requestStartedPerf=(window.performance&&performance.now)?performance.now():0;
+  const requestStartedAt=Date.now(),requestStartedPerf=(window.performance&&performance.now)?performance.now():0;
   const safeId=String(requestId||'').replace(/[^A-Za-z0-9_-]/g,'').slice(0,72)||('r'+Date.now());
   const frameName='apotekBarcodeBridgeFrame_'+safeId;
-  const frame=document.createElement('iframe');
-  frame.name=frameName;frame.id=frameName;frame.style.display='none';
+  const frame=document.createElement('iframe');frame.name=frameName;frame.id=frameName;frame.style.display='none';
   const form=document.createElement('form');form.method='POST';form.action=bridgeUrl;form.target=frameName;form.style.display='none';
   const body=Object.assign({},payload||{},{clientId:bridgeClientId});
-  const fields={token:sessionToken,mode,requestId,payload:JSON.stringify(body),clientStartedAt:String(requestStartedAt)};
-  let settled=false,iframeLoadCount=0,formSubmitted=false,postSubmittedAt=0,postSubmittedPerf=0,iframeFirstLoadAt=0,ackReceivedAt=0;
-  const trace={mode,requestId,clientStartedAt:requestStartedAt,clientStartedPerf:requestStartedPerf};
-  console.info('[APOTEK_E2E] REQUEST_START',trace);
+  const recoveryKey=(()=>{const a=new Uint8Array(32);if(window.crypto&&crypto.getRandomValues)crypto.getRandomValues(a);else for(let i=0;i<a.length;i++)a[i]=Math.floor(Math.random()*256);return Array.from(a).map(x=>x.toString(16).padStart(2,'0')).join('')})();
+  const fields={token:sessionToken,mode,requestId,payload:JSON.stringify(body),clientStartedAt:String(requestStartedAt),recoveryKey:recoveryKey};
+  let settled=false,iframeLoadCount=0,formSubmitted=false,postSubmittedAt=0,postSubmittedPerf=0,ackReceivedAt=0,pollTimer=0,pollStartedAt=0,pollCount=0,pollInFlight=false;
+  const RECOVERY_WINDOW_MS=240000,RECOVERY_POLL_MS=3000;
+  console.info('[APOTEK_E2E] REQUEST_START',{mode,requestId,clientStartedAt:requestStartedAt,clientStartedPerf:requestStartedPerf,recoveryEnabled:mode==='kasir_api'});
   console.info('[APOTEK_BRIDGE_DIAG] POST_START',{mode,requestId,bridgeOrigin:(()=>{try{return new URL(bridgeUrl).origin}catch(e){return 'invalid-url'}})(),payloadLength:fields.payload.length});
   Object.keys(fields).forEach(k=>{const input=document.createElement('input');input.type='hidden';input.name=k;input.value=String(fields[k]);form.appendChild(input)});
   function elapsed(){return Math.round(((window.performance&&performance.now)?performance.now():requestStartedPerf)-requestStartedPerf)}
-  function cleanup(){window.removeEventListener('message',onMessage);form.remove();frame.remove()}
-  function finish(fn,value){if(settled)return;settled=true;clearTimeout(timeout);const end=Date.now();console.info('[APOTEK_E2E] REQUEST_FINISH',{mode,requestId,outcome:fn===resolve?'ACK_RECEIVED':'FAILED',clientTotalMs:elapsed(),wallTotalMs:end-requestStartedAt,postToAckMs:ackReceivedAt&&postSubmittedPerf?Math.round(ackReceivedAt-postSubmittedPerf):null,iframeLoadCount,serverTrace:value&&value._e2e?value._e2e:null});cleanup();fn(value)}
-  frame.addEventListener('load',()=>{iframeLoadCount++;if(!iframeFirstLoadAt)iframeFirstLoadAt=Date.now();console.info('[APOTEK_BRIDGE_DIAG] IFRAME_LOAD',{mode,requestId,loadCount:iframeLoadCount,elapsedMs:elapsed(),frameUrl:(()=>{try{return frame.contentWindow.location.href}catch(e){return 'cross-origin'}})()});});
-  const timeout=setTimeout(()=>{console.error('[APOTEK_E2E] TIMEOUT',{mode,requestId,formSubmitted,iframeLoadCount,clientElapsedMs:elapsed(),postSubmittedAt,serverAckState:'NOT_RECEIVED',hint:'Cocokkan requestId dengan doPost_ENTER/doPost_PROCESSED dan server timing.'});finish(reject,new Error('Server belum memberikan konfirmasi setelah 40 detik. Diagnostik: formSubmitted='+formSubmitted+', iframeLoadCount='+iframeLoadCount+', clientElapsedMs='+elapsed()+'. Periksa requestId pada Apps Script Executions; jangan ulangi operasi yang belum jelas statusnya.'));},40000);
+  function cleanup(){window.removeEventListener('message',onMessage);if(pollTimer)clearTimeout(pollTimer);form.remove();frame.remove()}
+  function finish(fn,value){if(settled)return;settled=true;clearTimeout(timeout);if(pollTimer)clearTimeout(pollTimer);const end=Date.now();console.info('[APOTEK_E2E] REQUEST_FINISH',{mode,requestId,outcome:fn===resolve?'ACK_RECEIVED':'FAILED',clientTotalMs:elapsed(),wallTotalMs:end-requestStartedAt,postToAckMs:ackReceivedAt&&postSubmittedPerf?Math.round(ackReceivedAt-postSubmittedPerf):null,iframeLoadCount,pollCount,serverTrace:value&&value._e2e?value._e2e:null});cleanup();fn(value)}
+  frame.addEventListener('load',()=>{iframeLoadCount++;console.info('[APOTEK_BRIDGE_DIAG] IFRAME_LOAD',{mode,requestId,loadCount:iframeLoadCount,elapsedMs:elapsed(),frameUrl:(()=>{try{return frame.contentWindow.location.href}catch(e){return 'cross-origin'}})()});});
+  function scheduleRecovery(delay){if(settled||mode!=='kasir_api')return;if(pollTimer)clearTimeout(pollTimer);pollTimer=setTimeout(pollRecovery,delay||RECOVERY_POLL_MS)}
+  function pollRecovery(){
+   if(settled||pollInFlight||!formSubmitted)return;
+   if(!pollStartedAt)pollStartedAt=Date.now();
+   if(Date.now()-pollStartedAt>RECOVERY_WINDOW_MS){console.error('[APOTEK_ACK_RECOVERY] WINDOW_EXPIRED',{requestId,pollCount,elapsedMs:Date.now()-pollStartedAt});finish(reject,new Error('Hasil request belum dapat dipulihkan setelah 4 menit. Operasi tidak dikirim ulang; periksa status request sebelum mencoba kembali.'));return;}
+   pollInFlight=true;pollCount++;
+   const callbackName='__apotekAck_'+safeId.replace(/[^A-Za-z0-9_]/g,'')+'_'+pollCount;
+   const script=document.createElement('script');script.async=true;script.referrerPolicy='no-referrer';
+   let callbackDone=false;let pollWatchdog=0;
+   const finishPoll=()=>{if(callbackDone)return;callbackDone=true;if(pollWatchdog)clearTimeout(pollWatchdog);pollInFlight=false;try{delete window[callbackName]}catch(_){window[callbackName]=undefined}script.remove();};
+   window[callbackName]=function(data){finishPoll();if(settled)return;
+    console.info('[APOTEK_ACK_RECOVERY] STATUS',{requestId,state:data&&data.state,pollCount,elapsedMs:Date.now()-pollStartedAt});
+    if(data&&data.requestId===String(requestId)&&data.state==='COMPLETED'&&data.result&&data.result.requestId===String(requestId)){
+      const r=data.result;ackReceivedAt=(window.performance&&performance.now)?performance.now():0;
+      console.info('[APOTEK_ACK_RECOVERY] RESULT_RECOVERED',{requestId,pollCount,serverTrace:r._e2e||null,serverElapsedMs:r.serverElapsedMs??null});
+      if(r.ok)finish(resolve,r);else finish(reject,new Error(r.message||'Server menyelesaikan request dengan kesalahan.'));
+      return;
+    }
+    if(data&&data.state==='NOT_FOUND')console.warn('[APOTEK_ACK_RECOVERY] REGISTRY_MISS',{requestId,pollCount});
+    scheduleRecovery(RECOVERY_POLL_MS);
+   };
+   script.onerror=function(){finishPoll();if(!settled){console.warn('[APOTEK_ACK_RECOVERY] POLL_TRANSPORT_ERROR',{requestId,pollCount});scheduleRecovery(Math.min(8000,RECOVERY_POLL_MS+pollCount*250));}};
+   script.onload=function(){if(!callbackDone){pollWatchdog=setTimeout(()=>{finishPoll();if(!settled){console.warn('[APOTEK_ACK_RECOVERY] CALLBACK_NOT_EXECUTED',{requestId,pollCount});scheduleRecovery(RECOVERY_POLL_MS);}},8000);}};
+   try{
+    const u=new URL(bridgeUrl);u.searchParams.set('bridgeStatus','1');u.searchParams.set('requestId',String(requestId));u.searchParams.set('recoveryKey',recoveryKey);u.searchParams.set('callback',callbackName);u.searchParams.set('_ts',String(Date.now()));
+    script.src=u.toString();(document.head||document.body).appendChild(script);
+   }catch(e){finishPoll();console.error('[APOTEK_ACK_RECOVERY] URL_ERROR',{requestId,error:String(e)});scheduleRecovery(RECOVERY_POLL_MS);}
+  }
+  const timeout=setTimeout(()=>{
+   if(mode==='kasir_api'&&formSubmitted){console.warn('[APOTEK_E2E] ACK_PENDING_RECOVERY',{mode,requestId,formSubmitted,iframeLoadCount,clientElapsedMs:elapsed(),recoveryWindowMs:RECOVERY_WINDOW_MS});ucStatusSafeRecovery_('Server sedang menyelesaikan permintaan. Memulihkan hasil tanpa mengirim ulang lookup…');scheduleRecovery(0);return;}
+   console.error('[APOTEK_E2E] TIMEOUT',{mode,requestId,formSubmitted,iframeLoadCount,clientElapsedMs:elapsed(),serverAckState:'NOT_RECEIVED'});
+   finish(reject,new Error('Server belum memberikan konfirmasi setelah 40 detik. Diagnostik: formSubmitted='+formSubmitted+', iframeLoadCount='+iframeLoadCount+'. Operasi server mungkin sudah selesai; jangan pindai ulang sebelum memeriksa status request.'));
+  },40000);
   function onMessage(event){
    const d=event.data,channel=(d&&typeof d==='object')?String(d.channel||d.type||''):'[non-object]';
    const nested=(d&&typeof d==='object'&&d.result&&typeof d.result==='object')?d.result:null;
@@ -392,21 +423,19 @@ function submitToServerBridge_(mode,requestId,payload){
    const sourceMatches=event.source===frame.contentWindow;
    const messageOrigin=String(event.origin||'');let trustedOrigin=false;
    try{const u=new URL(messageOrigin),h=u.hostname.toLowerCase();trustedOrigin=u.protocol==='https:'&&(h==='script.google.com'||h==='googleusercontent.com'||h.endsWith('.googleusercontent.com'));}catch(e){trustedOrigin=false;}
-   console.info('[APOTEK_E2E] MESSAGE_OBSERVED',{mode,requestId,origin:messageOrigin,trustedOrigin,sourceMatches,channel,expectedRequestId:String(requestId),receivedRequestId:receivedId,elapsedMs:elapsed(),keys:(d&&typeof d==='object')?Object.keys(d).slice(0,12):[]});
-   if(!trustedOrigin){console.warn('[APOTEK_E2E] MESSAGE_REJECTED_ORIGIN',{mode,requestId,origin:messageOrigin});return;}
-   if(channel!=='APOTEK_BARCODE_HTTP'){console.warn('[APOTEK_E2E] MESSAGE_REJECTED_CHANNEL',{mode,requestId,channel});return;}
-   if(receivedId!==String(requestId)){console.warn('[APOTEK_E2E] MESSAGE_REJECTED_REQUEST_ID',{mode,requestId,receivedRequestId:receivedId});return;}
-   // Google ContentService redirect may alter event.source identity. Keep it as
-   // telemetry; trust is based on HTTPS Google response origin + unguessable ID.
+   console.info('[APOTEK_E2E] MESSAGE_OBSERVED',{mode,requestId,origin:messageOrigin,trustedOrigin,sourceMatches,channel,expectedRequestId:String(requestId),receivedRequestId:receivedId,elapsedMs:elapsed()});
+   if(!trustedOrigin||channel!=='APOTEK_BARCODE_HTTP'||receivedId!==String(requestId))return;
    const r=nested||{};ackReceivedAt=(window.performance&&performance.now)?performance.now():0;
    console.info('[APOTEK_E2E] ACK_RECEIVED',{mode,requestId,clientElapsedMs:elapsed(),sourceMatches,serverTrace:r._e2e||null,serverElapsedMs:r.serverElapsedMs??null});
-   if(r.ok){finish(resolve,r)}else finish(reject,new Error(r.message||'Server menolak permintaan barcode.'));
+   if(r.ok)finish(resolve,r);else finish(reject,new Error(r.message||'Server menolak permintaan barcode.'));
   }
   window.addEventListener('message',onMessage);
   document.body.appendChild(frame);document.body.appendChild(form);
-  requestAnimationFrame(()=>{if(settled)return;try{formSubmitted=true;postSubmittedAt=Date.now();postSubmittedPerf=(window.performance&&performance.now)?performance.now():0;console.info('[APOTEK_BRIDGE_DIAG] FORM_SUBMIT',{mode,requestId,target:frameName,elapsedMs:elapsed(),clientSubmittedAt:postSubmittedAt});form.submit();}catch(e){finish(reject,new Error('Gagal mengirim formulir ke server Apps Script: '+(e.message||e)));}});
+  requestAnimationFrame(()=>{if(settled)return;try{formSubmitted=true;postSubmittedAt=Date.now();postSubmittedPerf=(window.performance&&performance.now)?performance.now():0;console.info('[APOTEK_BRIDGE_DIAG] FORM_SUBMIT',{mode,requestId,target:frameName,elapsedMs:elapsed(),clientSubmittedAt:postSubmittedAt});form.submit();if(mode==='kasir_api')scheduleRecovery(6000);}catch(e){finish(reject,new Error('Gagal mengirim formulir ke server Apps Script: '+(e.message||e)));}});
  });
 }
+function ucStatusSafeRecovery_(message){try{if(typeof ucStatus==='function')ucStatus(message,false);}catch(_){}}
+
 
 const UC={cart:[],busy:false,lastPosted:null,pendingCheckout:null,apiQueue:Promise.resolve(),apiQueueDepth:0};
 try{const pending=JSON.parse(sessionStorage.getItem('apotek_unified_cashier_pending')||'null');if(pending&&pending.sale&&pending.requestId){UC.pendingCheckout=pending;UC.cart=Array.isArray(pending.cart)?pending.cart:[];}}catch(e){}
