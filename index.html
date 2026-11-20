@@ -376,8 +376,10 @@ function submitToServerBridge_(mode,requestId,payload){
   const form=document.createElement('form');form.method='POST';form.action=bridgeUrl;form.target=frameName;form.style.display='none';
   const body=Object.assign({},payload||{},{clientId:bridgeClientId});
   const fields={token:sessionToken,mode,requestId,payload:JSON.stringify(body)};
+  console.info('[APOTEK_BRIDGE_DIAG] POST_START', {mode,requestId,bridgeOrigin:(()=>{try{return new URL(bridgeUrl).origin}catch(e){return 'invalid-url'}})(),payloadLength:fields.payload.length});
   Object.keys(fields).forEach(k=>{const input=document.createElement('input');input.type='hidden';input.name=k;input.value=String(fields[k]);form.appendChild(input)});
-  let settled=false;
+  let settled=false,iframeLoadCount=0,formSubmitted=false;
+  frame.addEventListener('load',()=>{iframeLoadCount++;console.info('[APOTEK_BRIDGE_DIAG] IFRAME_LOAD',{mode,requestId,loadCount:iframeLoadCount,frameUrl:(()=>{try{return frame.contentWindow.location.href}catch(e){return 'cross-origin'}})()});});
   function cleanup(){
    window.removeEventListener('message',onMessage);
    form.remove();
@@ -387,8 +389,9 @@ function submitToServerBridge_(mode,requestId,payload){
   function finish(fn,value){
    if(settled)return;settled=true;clearTimeout(timeout);cleanup();fn(value);
   }
-  const timeout=setTimeout(()=>finish(reject,new Error('Server belum memberikan konfirmasi setelah 40 detik. Permintaan '+mode+' mungkin masih diproses. Jangan pindai ulang; kirim ulang permintaan yang sama bila tersedia.')),40000);
+  const timeout=setTimeout(()=>{console.error('[APOTEK_BRIDGE_DIAG] TIMEOUT',{mode,requestId,formSubmitted,iframeLoadCount});finish(reject,new Error('Server belum memberikan konfirmasi setelah 40 detik. Diagnostik: formSubmitted='+formSubmitted+', iframeLoadCount='+iframeLoadCount+'. Periksa Console dan Apps Script Executions. Jangan pindai ulang transaksi; gunakan request yang sama bila tersedia.'));},40000);
   function onMessage(event){
+   if(event.data?.channel==='APOTEK_BARCODE_HTTP')console.info('[APOTEK_BRIDGE_DIAG] MESSAGE_RECEIVED',{origin:event.origin,mode,requestId: String(event.data?.result?.requestId||''),ok:!!event.data?.result?.ok});
    if(event.data?.channel!=='APOTEK_BARCODE_HTTP'||String(event.data?.result?.requestId||'')!==String(requestId))return;
    const r=event.data.result||{};
    if(r.ok){if(r.serverElapsedMs!==undefined)console.info('[Unified Cashier] Server lookup selesai dalam '+r.serverElapsedMs+' ms');finish(resolve,r)}
@@ -397,7 +400,7 @@ function submitToServerBridge_(mode,requestId,payload){
   window.addEventListener('message',onMessage);
   document.body.appendChild(frame);
   document.body.appendChild(form);
-  requestAnimationFrame(()=>{if(settled)return;try{form.submit()}catch(e){finish(reject,new Error('Gagal mengirim formulir ke server Apps Script: '+(e.message||e)))}});
+  requestAnimationFrame(()=>{if(settled)return;try{formSubmitted=true;console.info('[APOTEK_BRIDGE_DIAG] FORM_SUBMIT',{mode,requestId,target:frameName});form.submit()}catch(e){finish(reject,new Error('Gagal mengirim formulir ke server Apps Script: '+(e.message||e)))}});
  });
 }
 
