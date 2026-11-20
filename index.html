@@ -389,14 +389,22 @@ function submitToServerBridge_(mode,requestId,payload){
   function finish(fn,value){
    if(settled)return;settled=true;clearTimeout(timeout);cleanup();fn(value);
   }
-  const timeout=setTimeout(()=>{console.error('[APOTEK_BRIDGE_DIAG] TIMEOUT',{mode,requestId,formSubmitted,iframeLoadCount});finish(reject,new Error('Server belum memberikan konfirmasi setelah 40 detik. Diagnostik: formSubmitted='+formSubmitted+', iframeLoadCount='+iframeLoadCount+'. Periksa Console dan Apps Script Executions. Jangan pindai ulang transaksi; gunakan request yang sama bila tersedia.'));},40000);
+  const timeout=setTimeout(()=>{console.error('[APOTEK_BRIDGE_DIAG] TIMEOUT',{mode,requestId,formSubmitted,iframeLoadCount,ackState:'NOT_RECEIVED',recoveryHint:'Periksa MESSAGE_OBSERVED dan MESSAGE_REJECTED_*'});finish(reject,new Error('Server belum memberikan konfirmasi setelah 40 detik. Diagnostik: formSubmitted='+formSubmitted+', iframeLoadCount='+iframeLoadCount+'. Operasi server mungkin sudah selesai; jangan pindai ulang sebelum memeriksa status request.'));},40000);
   function onMessage(event){
-   if(event.data?.channel==='APOTEK_BARCODE_HTTP')console.info('[APOTEK_BRIDGE_DIAG] MESSAGE_RECEIVED',{origin:event.origin,sourceMatches:event.source===frame.contentWindow,mode,expectedRequestId:requestId,receivedRequestId:String(event.data?.result?.requestId||''),ok:!!event.data?.result?.ok});
-   // Respons harus berasal dari iframe request ini dan membawa requestId yang sama.
-   // Ini mencegah respons iframe lain / request paralel menyelesaikan Promise yang salah.
-   if(event.source!==frame.contentWindow)return;
-   if(event.data?.channel!=='APOTEK_BARCODE_HTTP'||String(event.data?.result?.requestId||'')!==String(requestId))return;
-   const r=event.data.result||{};
+   // Observer v5.3.3: catat SEMUA message saat request aktif, termasuk envelope
+   // yang tidak dikenal. Jangan pernah menyelesaikan request hanya berdasarkan
+   // kemiripan isi pesan; source iframe dan requestId tetap wajib cocok.
+   const d=event.data;
+   const channel=(d&&typeof d==='object')?String(d.channel||d.type||''):'[non-object]';
+   const nested=(d&&typeof d==='object'&&d.result&&typeof d.result==='object')?d.result:null;
+   const receivedId=String((nested&&nested.requestId)||(d&&typeof d==='object'&&d.requestId)||'');
+   const sourceMatches=event.source===frame.contentWindow;
+   console.info('[APOTEK_BRIDGE_TRACE] MESSAGE_OBSERVED',{origin:String(event.origin||''),sourceMatches,channel,expectedRequestId:String(requestId),receivedRequestId:receivedId,dataType:typeof d,keys:(d&&typeof d==='object')?Object.keys(d).slice(0,12):[]});
+   if(!sourceMatches){console.warn('[APOTEK_BRIDGE_TRACE] MESSAGE_REJECTED_SOURCE',{mode,requestId,channel,receivedRequestId});return;}
+   if(channel!=='APOTEK_BARCODE_HTTP'){console.warn('[APOTEK_BRIDGE_TRACE] MESSAGE_REJECTED_CHANNEL',{mode,requestId,channel,receivedRequestId});return;}
+   if(receivedId!==String(requestId)){console.warn('[APOTEK_BRIDGE_TRACE] MESSAGE_REJECTED_REQUEST_ID',{mode,requestId,receivedRequestId});return;}
+   const r=nested||{};
+   console.info('[APOTEK_BRIDGE_DIAG] MESSAGE_RECEIVED',{origin:event.origin,sourceMatches,mode,expectedRequestId:requestId,receivedRequestId:receivedId,ok:!!r.ok});
    if(r.ok){if(r.serverElapsedMs!==undefined)console.info('[Unified Cashier] Server lookup selesai dalam '+r.serverElapsedMs+' ms');finish(resolve,r)}
    else finish(reject,new Error(r.message||'Server menolak permintaan barcode.'));
   }
