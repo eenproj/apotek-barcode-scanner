@@ -391,7 +391,10 @@ function submitToServerBridge_(mode,requestId,payload){
   }
   const timeout=setTimeout(()=>{console.error('[APOTEK_BRIDGE_DIAG] TIMEOUT',{mode,requestId,formSubmitted,iframeLoadCount});finish(reject,new Error('Server belum memberikan konfirmasi setelah 40 detik. Diagnostik: formSubmitted='+formSubmitted+', iframeLoadCount='+iframeLoadCount+'. Periksa Console dan Apps Script Executions. Jangan pindai ulang transaksi; gunakan request yang sama bila tersedia.'));},40000);
   function onMessage(event){
-   if(event.data?.channel==='APOTEK_BARCODE_HTTP')console.info('[APOTEK_BRIDGE_DIAG] MESSAGE_RECEIVED',{origin:event.origin,mode,requestId: String(event.data?.result?.requestId||''),ok:!!event.data?.result?.ok});
+   if(event.data?.channel==='APOTEK_BARCODE_HTTP')console.info('[APOTEK_BRIDGE_DIAG] MESSAGE_RECEIVED',{origin:event.origin,sourceMatches:event.source===frame.contentWindow,mode,expectedRequestId:requestId,receivedRequestId:String(event.data?.result?.requestId||''),ok:!!event.data?.result?.ok});
+   // Respons harus berasal dari iframe request ini dan membawa requestId yang sama.
+   // Ini mencegah respons iframe lain / request paralel menyelesaikan Promise yang salah.
+   if(event.source!==frame.contentWindow)return;
    if(event.data?.channel!=='APOTEK_BARCODE_HTTP'||String(event.data?.result?.requestId||'')!==String(requestId))return;
    const r=event.data.result||{};
    if(r.ok){if(r.serverElapsedMs!==undefined)console.info('[Unified Cashier] Server lookup selesai dalam '+r.serverElapsedMs+' ms');finish(resolve,r)}
@@ -405,7 +408,7 @@ function submitToServerBridge_(mode,requestId,payload){
 }
 
 
-const UC={cart:[],busy:false,lastPosted:null,pendingCheckout:null};
+const UC={cart:[],busy:false,lastPosted:null,pendingCheckout:null,apiQueue:Promise.resolve(),apiQueueDepth:0};
 try{const pending=JSON.parse(sessionStorage.getItem('apotek_unified_cashier_pending')||'null');if(pending&&pending.sale&&pending.requestId){UC.pendingCheckout=pending;UC.cart=Array.isArray(pending.cart)?pending.cart:[];}}catch(e){}
 function ucMoney(v){return 'Rp '+Math.round(Number(v)||0).toLocaleString('id-ID')}
 function ucTotals(){
@@ -426,7 +429,15 @@ function ucRender(){
 function ucEsc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function ucStatus(msg,error=false){const el=document.getElementById('ucStatus');if(el){el.textContent=msg;el.style.color=error?'#ffaaa8':'#9debd7'}}
 function ucRequestId(){return (window.crypto&&window.crypto.randomUUID)?window.crypto.randomUUID():'uc-'+Date.now()+'-'+Math.random().toString(36).slice(2)}
-async function ucApi(action,payload){return submitToServerBridge_('kasir_api',ucRequestId(),Object.assign({action},payload||{}))}
+function ucApi(action,payload){
+ // Satu jalur kasir_api pada satu waktu: konfigurasi awal, lookup beruntun,
+ // dan aksi kasir tidak saling menavigasi / berlomba menyelesaikan bridge.
+ const requestId=ucRequestId(),body=Object.assign({action},payload||{});
+ const run=()=>{UC.apiQueueDepth++;console.info('[UC_API_QUEUE] START',{action,requestId,queueDepth:UC.apiQueueDepth});return submitToServerBridge_('kasir_api',requestId,body).finally(()=>{UC.apiQueueDepth=Math.max(0,UC.apiQueueDepth-1);console.info('[UC_API_QUEUE] END',{action,requestId,queueDepth:UC.apiQueueDepth})})};
+ const task=UC.apiQueue.then(run,run);
+ UC.apiQueue=task.catch(()=>{});
+ return task;
+}
 async function ucAddBarcode(code){
  if(UC.pendingCheckout)throw new Error('Ada transaksi yang belum menerima konfirmasi. Gunakan POSTING PENJUALAN kembali untuk memeriksa transaksi yang sama.');
  const normCode=norm(code);if(!normCode)return;
