@@ -398,13 +398,31 @@ function submitToServerBridge_(mode,requestId,payload){
    const channel=(d&&typeof d==='object')?String(d.channel||d.type||''):'[non-object]';
    const nested=(d&&typeof d==='object'&&d.result&&typeof d.result==='object')?d.result:null;
    const receivedId=String((nested&&nested.requestId)||(d&&typeof d==='object'&&d.requestId)||'');
+   // Google Apps Script ContentService redirects the iframe response to a
+   // script.googleusercontent.com origin. In some browsers the postMessage
+   // source WindowProxy is not strictly equal to the original iframe proxy,
+   // although the trusted origin and unguessable requestId still correlate it.
    const sourceMatches=event.source===frame.contentWindow;
-   console.info('[APOTEK_BRIDGE_TRACE] MESSAGE_OBSERVED',{origin:String(event.origin||''),sourceMatches,channel,expectedRequestId:String(requestId),receivedRequestId:receivedId,dataType:typeof d,keys:(d&&typeof d==='object')?Object.keys(d).slice(0,12):[]});
-   if(!sourceMatches){console.warn('[APOTEK_BRIDGE_TRACE] MESSAGE_REJECTED_SOURCE',{mode,requestId,channel,receivedRequestId});return;}
+   const messageOrigin=String(event.origin||'');
+   let trustedOrigin=false;
+   try{
+    const u=new URL(messageOrigin);
+    const h=u.hostname.toLowerCase();
+    trustedOrigin=u.protocol==='https:' && (
+      h==='script.google.com' ||
+      h.endsWith('.googleusercontent.com') ||
+      h.endsWith('-script.googleusercontent.com')
+    );
+   }catch(e){trustedOrigin=false;}
+   console.info('[APOTEK_BRIDGE_TRACE] MESSAGE_OBSERVED',{origin:messageOrigin,trustedOrigin,sourceMatches,channel,expectedRequestId:String(requestId),receivedRequestId:receivedId,dataType:typeof d,keys:(d&&typeof d==='object')?Object.keys(d).slice(0,12):[]});
+   if(!trustedOrigin){console.warn('[APOTEK_BRIDGE_TRACE] MESSAGE_REJECTED_ORIGIN',{mode,requestId,origin:messageOrigin,channel,receivedRequestId});return;}
    if(channel!=='APOTEK_BARCODE_HTTP'){console.warn('[APOTEK_BRIDGE_TRACE] MESSAGE_REJECTED_CHANNEL',{mode,requestId,channel,receivedRequestId});return;}
    if(receivedId!==String(requestId)){console.warn('[APOTEK_BRIDGE_TRACE] MESSAGE_REJECTED_REQUEST_ID',{mode,requestId,receivedRequestId});return;}
+   // sourceMatches is retained for diagnostics only; it is not a rejection
+   // condition because the GAS ContentService redirect can change the sender
+   // proxy observed by the parent window. Origin + requestId + channel gate ACK.
    const r=nested||{};
-   console.info('[APOTEK_BRIDGE_DIAG] MESSAGE_RECEIVED',{origin:event.origin,sourceMatches,mode,expectedRequestId:requestId,receivedRequestId:receivedId,ok:!!r.ok});
+   console.info('[APOTEK_BRIDGE_DIAG] MESSAGE_RECEIVED',{origin:event.origin,trustedOrigin,sourceMatches,mode,expectedRequestId:requestId,receivedRequestId:receivedId,ok:!!r.ok});
    if(r.ok){if(r.serverElapsedMs!==undefined)console.info('[Unified Cashier] Server lookup selesai dalam '+r.serverElapsedMs+' ms');finish(resolve,r)}
    else finish(reject,new Error(r.message||'Server menolak permintaan barcode.'));
   }
