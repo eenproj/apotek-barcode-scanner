@@ -195,6 +195,7 @@ body.product-mode #status,body.product-mode .scanner-camera-column>.row:first-of
   }
 }
 
+.uc-cart-warning{display:none;margin:8px 0 10px;padding:10px 12px;border:1px solid rgba(255,190,90,.5);border-radius:10px;background:rgba(125,72,18,.22);color:#ffe2ad;font-size:12px;line-height:1.45}.uc-cart-warning strong{display:block;margin-bottom:3px}.uc-stock-dialog{border-color:rgba(255,205,110,.55)}.uc-stock-dialog h3{color:#ffe0a3}.uc-stock-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px}.uc-stock-adjust{border:0;border-radius:9px;padding:9px 11px;background:#167b70;color:white;font-weight:750;cursor:pointer}.uc-stock-remove{border:0;border-radius:9px;padding:9px 11px;background:#b93838;color:white;font-weight:750;cursor:pointer}.uc-stock-qty{display:flex;align-items:center;gap:8px;margin-top:7px}.uc-stock-qty input{width:90px;background:#0b1929;color:white;border:1px solid #456078;border-radius:8px;padding:7px}
 </style>
 
 <style>
@@ -244,7 +245,7 @@ body.product-mode #status,body.product-mode .scanner-camera-column>.row:first-of
   <label>Metode Pembayaran<select id="ucPayment"><option>Cash</option><option>Transfer</option><option>Qris</option></select></label>
   <label id="ucCashWrap">Uang Diterima<input id="ucCashReceived" type="number" min="0" step="1" inputmode="numeric" placeholder="Nominal pembayaran"></label>
  </div>
- <div class="uc-panel"><div class="uc-head"><h3>Keranjang</h3><span class="uc-muted">FEFO & stok divalidasi server saat posting</span></div><div id="ucCartRows"><div class="uc-muted">Belum ada produk. Pindai barcode untuk menambahkan.</div></div>
+ <div class="uc-panel"><div class="uc-head"><h3>Keranjang</h3><span class="uc-muted">FEFO & stok divalidasi server saat posting</span></div><div id="ucCartWarnings" class="uc-cart-warning" role="status" aria-live="polite"></div><div id="ucCartRows"><div class="uc-muted">Belum ada produk. Pindai barcode untuk menambahkan.</div></div>
   <div class="uc-row"><span>Subtotal</span><strong id="ucGross">Rp 0</strong></div>
   <div class="uc-row"><span>Diskon</span><strong id="ucDiscountValue">Rp 0</strong></div>
   <div class="uc-row"><span>Pajak</span><strong id="ucTaxValue">Rp 0</strong></div>
@@ -460,6 +461,9 @@ function ucTotals(){
 }
 function ucRender(){
  const host=document.getElementById('ucCartRows');if(!host)return;
+ const warningHost=document.getElementById('ucCartWarnings');
+ const warnings=UC.cart.filter(x=>Number(x.StokKedaluwarsa||0)>0||Number(x.Qty||0)>Number(x.StokLayak??x.Stok??0));
+ if(warningHost){warningHost.style.display=warnings.length?'block':'none';warningHost.innerHTML=warnings.length?'<strong>⚠ Pemeriksaan masa kedaluwarsa / ketersediaan stok</strong>'+warnings.map(x=>{const short=Number(x.Qty||0)>Number(x.StokLayak??x.Stok??0);return '<div>• '+ucEsc(x.NamaProduk)+': '+(short?'Qty keranjang '+Number(x.Qty||0)+' melebihi stok layak '+Number(x.StokLayak??x.Stok??0)+'. ':'')+(Number(x.StokKedaluwarsa||0)>0?'Terdapat '+Number(x.StokKedaluwarsa||0)+' stok dari batch kedaluwarsa. Batch tersebut tidak dapat dijual.':'')+'</div>'}).join(''):'';}
  document.getElementById('ucItemCount').textContent=UC.cart.reduce((a,x)=>a+Number(x.Qty||0),0)+' item';
  if(!UC.cart.length)host.innerHTML='<div class="uc-muted">Belum ada produk. Pindai barcode untuk menambahkan.</div>';
  else host.innerHTML=UC.cart.map((x,i)=>'<div class="uc-row"><div style="min-width:0;flex:1"><strong>'+ucEsc(x.NamaProduk)+'</strong><div class="uc-muted">'+ucEsc(x.KodeProduk||x.Barcode||'')+' · '+ucMoney(x.HargaJual)+' / '+ucEsc(x.Satuan||'unit')+'</div><div style="display:flex;align-items:center;gap:6px;margin-top:6px"><button class="uc-btn secondary" data-uc-qty="'+i+'" data-delta="-1" type="button">−</button><strong>'+x.Qty+'</strong><button class="uc-btn secondary" data-uc-qty="'+i+'" data-delta="1" type="button">+</button></div></div><strong>'+ucMoney(x.Qty*x.HargaJual)+'</strong><button class="uc-remove" data-uc-remove="'+i+'" type="button" aria-label="Hapus produk">×</button></div>').join('');
@@ -468,17 +472,52 @@ function ucRender(){
 function ucEsc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function ucStatus(msg,error=false){const el=document.getElementById('ucStatus');if(el){el.textContent=msg;el.style.color=error?'#ffaaa8':'#9debd7'}}
 let UC_EXPIRED_ISSUES=[];
-function ucParseExpiredIssues_(error){const message=String(error?.message||error||''),marker='EXPIRED_CART_ITEMS::',at=message.indexOf(marker);if(at<0)return null;try{const parsed=JSON.parse(message.slice(at+marker.length));return Array.isArray(parsed)?parsed.filter(x=>x&&x.ProdukID!=null):null}catch(e){console.warn('[UC_EXPIRED_CART] Payload tidak valid',e);return null}}
-function ucRenderExpiredRecovery_(){
- let overlay=document.getElementById('ucExpiredCartOverlay');if(!UC_EXPIRED_ISSUES_.length){overlay?.remove();return}
- const rows=UC_EXPIRED_ISSUES_.map(issue=>{const item=UC.cart.find(x=>String(x.ProdukID)===String(issue.ProdukID));if(!item)return '';const batches=Array.isArray(issue.Batches)?issue.Batches.map(b=>[b.NoBatch||b.noBatch||b.batch||'',b.Expired||b.expired||b.TanggalExpired||''].filter(Boolean).join(' · ')).filter(Boolean).join(', '):'';const detail=['Diminta: '+Number(issue.QtyDiminta||item.Qty||0),'Stok layak: '+Number(issue.QtyLayak||0),'Stok kedaluwarsa: '+Number(issue.QtyKedaluwarsa||0),batches?'Batch: '+batches:''].filter(Boolean).join(' | ');return '<div class="uc-expired-item"><div style="min-width:0;flex:1"><strong>'+ucEsc(item.NamaProduk||issue.NamaProduk||issue.ProdukID)+'</strong><small>'+ucEsc(detail)+'</small></div><button type="button" class="uc-expired-remove" data-uc-expired-remove="'+ucEsc(issue.ProdukID)+'">Hapus dari keranjang</button></div>'}).filter(Boolean).join('');
- if(!rows){overlay?.remove();UC_EXPIRED_ISSUES_=[];ucStatus('Item bermasalah tidak lagi ditemukan dalam keranjang.',true);return}
- if(!overlay){overlay=document.createElement('div');overlay.id='ucExpiredCartOverlay';overlay.className='uc-expired-overlay';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-labelledby','ucExpiredCartTitle');document.body.appendChild(overlay)}
- overlay.innerHTML='<div class="uc-expired-dialog"><h3 id="ucExpiredCartTitle">Produk Kedaluwarsa — Perlu Tindakan</h3><p>Posting dibatalkan oleh validasi server karena item berikut tidak memiliki stok layak jual yang mencukupi. Hapus item bermasalah dari keranjang. Master Produk, stok, dan batch persediaan tidak diubah.</p>'+rows+'<div class="uc-expired-foot"><button type="button" class="uc-expired-close" data-uc-expired-close>Tutup</button></div></div>';
+let UC_STOCK_ISSUES_=[];
+function ucParseIssuePayload_(error,marker){const message=String(error?.message||error||''),at=message.indexOf(marker);if(at<0)return null;try{const parsed=JSON.parse(message.slice(at+marker.length));return Array.isArray(parsed)?parsed.filter(x=>x&&x.ProdukID!=null):null}catch(e){console.warn('[UC_CART_RECOVERY] Payload tidak valid',e);return null}}
+function ucRenderCartRecovery_(){
+ const expired=UC_EXPIRED_ISSUES_.length>0,issues=expired?UC_EXPIRED_ISSUES_:UC_STOCK_ISSUES_;
+ let overlay=document.getElementById('ucExpiredCartOverlay');
+ if(!issues.length){overlay?.remove();return}
+ const rows=issues.map(issue=>{
+  const item=UC.cart.find(x=>String(x.ProdukID)===String(issue.ProdukID));if(!item)return '';
+  const available=expired?Number(issue.QtyLayak||0):Number(issue.QtyTersedia||0);
+  const batchText=Array.isArray(issue.Batches)?issue.Batches.map(b=>[b.NoBatch||b.noBatch||'',b.Expired||b.expired||''].filter(Boolean).join(' · ')+(Number(b.Qty)>0?' · Qty '+Number(b.Qty):'')).join(', '):'';
+  const detail=expired?['Diminta: '+Number(issue.QtyDiminta||item.Qty),'Stok layak: '+available,'Stok kedaluwarsa: '+Number(issue.QtyKedaluwarsa||0),batchText?'Batch: '+batchText:''].filter(Boolean).join(' | '):['Diminta: '+Number(issue.QtyDiminta||item.Qty),'Stok tersedia: '+available,'Kekurangan: '+Number(issue.QtyKurang||Math.max(0,Number(item.Qty)-available))].join(' | ');
+  const canAdjust=available>0;
+  return '<div class="uc-expired-item"><div style="min-width:0;flex:1"><strong>'+ucEsc(item.NamaProduk||issue.NamaProduk||issue.ProdukID)+'</strong><small>'+ucEsc(detail)+'</small>'+(canAdjust?'<div class="uc-stock-qty"><label style="font-size:11px">Qty baru <input type="number" min="1" max="'+available+'" step="1" value="'+Math.min(Number(item.Qty||1),available)+'" data-uc-recovery-qty="'+ucEsc(issue.ProdukID)+'"></label></div>':'')+'</div><div style="display:flex;flex-direction:column;gap:7px;align-items:flex-end">'+(canAdjust?'<button type="button" class="uc-stock-adjust" data-uc-stock-adjust="'+ucEsc(issue.ProdukID)+'">Sesuaikan Qty</button>':'')+'<button type="button" class="uc-stock-remove" data-uc-stock-remove="'+ucEsc(issue.ProdukID)+'">Hapus</button></div></div>';
+ }).filter(Boolean).join('');
+ if(!rows){overlay?.remove();UC_EXPIRED_ISSUES_=[];UC_STOCK_ISSUES_=[];ucStatus('Item bermasalah tidak lagi ditemukan dalam keranjang.',true);return}
+ if(!overlay){overlay=document.createElement('div');overlay.id='ucExpiredCartOverlay';overlay.className='uc-expired-overlay';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');document.body.appendChild(overlay)}
+ overlay.innerHTML='<div class="uc-expired-dialog '+(expired?'':'uc-stock-dialog')+'"><h3>'+(expired?'Produk Kedaluwarsa — Perlu Tindakan':'Stok Tidak Mencukupi — Perlu Penyesuaian')+'</h3><p>'+(expired?'Posting dibatalkan karena stok layak jual tidak mencukupi dan terdapat batch kedaluwarsa. Anda dapat menyesuaikan kuantitas ke stok layak atau menghapus produk.':'Posting dibatalkan karena kuantitas keranjang melebihi stok tersedia. Sesuaikan kuantitas sesuai stok atau hapus produk dari keranjang.')+' Perubahan hanya berlaku pada keranjang; Master Produk, stok, dan batch tidak diubah.</p>'+rows+'<div class="uc-stock-actions"><button type="button" class="uc-expired-close" data-uc-recovery-close>Tutup</button></div></div>';
 }
-function ucHandleExpiredCheckout_(error){const issues=ucParseExpiredIssues_(error);if(!issues||!issues.length)return false;UC.pendingCheckout=null;try{sessionStorage.removeItem('apotek_unified_cashier_pending')}catch(e){}UC_EXPIRED_ISSUES_=issues;ucRenderExpiredRecovery_();ucStatus('Transaksi belum diposting. Hapus produk kedaluwarsa dari keranjang, lalu posting ulang.',true);return true}
-function ucRemoveExpiredItem_(productId){if(UC.pendingCheckout){ucStatus('Periksa status transaksi sebelum mengubah keranjang.',true);return}const id=String(productId);const before=UC.cart.length;for(let i=UC.cart.length-1;i>=0;i--)if(String(UC.cart[i]?.ProdukID)===id)UC.cart.splice(i,1);if(before===UC.cart.length){UC_EXPIRED_ISSUES_=UC_EXPIRED_ISSUES_.filter(x=>String(x.ProdukID)!==id);ucRenderExpiredRecovery_();return}UC_EXPIRED_ISSUES_=UC_EXPIRED_ISSUES_.filter(x=>String(x.ProdukID)!==id);ucRender();ucRenderExpiredRecovery_();if(!UC_EXPIRED_ISSUES_.length){ucStatus('Produk bermasalah telah dihapus. Total diperbarui; silakan posting ulang transaksi.');}else{ucStatus('Produk dihapus dari keranjang. Periksa item bermasalah lainnya.')}}
-document.addEventListener('click',function(e){const remove=e.target?.closest?.('[data-uc-expired-remove]');if(remove){ucRemoveExpiredItem_(remove.getAttribute('data-uc-expired-remove'));return}if(e.target?.closest?.('[data-uc-expired-close]')){document.getElementById('ucExpiredCartOverlay')?.remove();}});
+function ucHandleCartValidationError_(error){
+ const expired=ucParseIssuePayload_(error,'EXPIRED_CART_ITEMS::');
+ const stock=expired?null:ucParseIssuePayload_(error,'INSUFFICIENT_STOCK_ITEMS::');
+ if(!expired&&!stock)return false;
+ // Kedua respons ini adalah penolakan bisnis eksplisit dari server sebelum transaksi diposting.
+ UC.pendingCheckout=null;try{sessionStorage.removeItem('apotek_unified_cashier_pending')}catch(e){}
+ UC_EXPIRED_ISSUES_=expired||[];UC_STOCK_ISSUES_=stock||[];ucRenderCartRecovery_();
+ ucStatus(expired?'Transaksi belum diposting. Sesuaikan kuantitas atau hapus produk yang terdampak batch kedaluwarsa.':'Transaksi belum diposting. Sesuaikan kuantitas dengan stok tersedia atau hapus produk.',true);return true;
+}
+function ucResolveCartIssue_(productId,action){
+ const id=String(productId||''),issueList=UC_EXPIRED_ISSUES_.length?UC_EXPIRED_ISSUES_:UC_STOCK_ISSUES_;
+ const issue=issueList.find(x=>String(x.ProdukID)===id),item=UC.cart.find(x=>String(x.ProdukID)===id);if(!issue||!item)return;
+ if(action==='remove')UC.cart=UC.cart.filter(x=>String(x.ProdukID)!==id);
+ else{
+  const input=Array.from(document.querySelectorAll('[data-uc-recovery-qty]')).find(el=>String(el.getAttribute('data-uc-recovery-qty'))===id);
+  const qty=Number(input?.value),max=UC_EXPIRED_ISSUES_.length?Number(issue.QtyLayak||0):Number(issue.QtyTersedia||0);
+  if(!Number.isInteger(qty)||qty<1||qty>max){ucStatus('Kuantitas harus 1 sampai '+max+'.',true);return}
+  item.Qty=qty;
+ }
+ UC_EXPIRED_ISSUES_=UC_EXPIRED_ISSUES_.filter(x=>String(x.ProdukID)!==id);UC_STOCK_ISSUES_=UC_STOCK_ISSUES_.filter(x=>String(x.ProdukID)!==id);
+ ucRender();ucRenderCartRecovery_();ucStatus(action==='remove'?'Produk dihapus dari keranjang. Total pembayaran diperbarui.':'Kuantitas diperbarui sesuai stok tersedia. Total pembayaran diperbarui.');
+}
+document.addEventListener('click',function(e){
+ const adjust=e.target?.closest?.('[data-uc-stock-adjust]'),remove=e.target?.closest?.('[data-uc-stock-remove]');
+ if(adjust){ucResolveCartIssue_(adjust.getAttribute('data-uc-stock-adjust'),'adjust');return}
+ if(remove){ucResolveCartIssue_(remove.getAttribute('data-uc-stock-remove'),'remove');return}
+ if(e.target?.closest?.('[data-uc-recovery-close]'))document.getElementById('ucExpiredCartOverlay')?.remove();
+});
 function ucRequestId(){return (window.crypto&&window.crypto.randomUUID)?window.crypto.randomUUID():'uc-'+Date.now()+'-'+Math.random().toString(36).slice(2)}
 function ucApi(action,payload){
  // Satu jalur kasir_api pada satu waktu: konfigurasi awal, lookup beruntun,
@@ -503,8 +542,8 @@ async function ucAddBarcode(code){
   }
   const old=UC.cart.find(x=>String(x.ProdukID)===String(p.ID));const next=Number(old?.Qty||0)+1;
   if(next>Number(p.Stok||0))throw new Error('Stok tidak mencukupi. Stok tersedia: '+p.Stok);
-  if(old)old.Qty=next;else UC.cart.push({ProdukID:p.ID,KodeProduk:p.KodeProduk,NamaProduk:p.NamaProduk,Barcode:p.Barcode,Qty:1,HargaJual:Number(p.HargaJual||0),Satuan:p.Satuan||'',Stok:Number(p.Stok||0),JenisObat:p.JenisObat||'Bebas'});
-  ucRender();ucStatus('✓ '+p.NamaProduk+' ditambahkan. Keranjang tersinkron pada popup ini.');return p;
+  if(old){old.Qty=next;old.Stok=Number(p.Stok||0);old.StokLayak=Number(p.StokLayak??p.Stok??0);old.StokKedaluwarsa=Number(p.StokKedaluwarsa||0);old.ExpiredBatches=Array.isArray(p.ExpiredBatches)?p.ExpiredBatches:[];}else UC.cart.push({ProdukID:p.ID,KodeProduk:p.KodeProduk,NamaProduk:p.NamaProduk,Barcode:p.Barcode,Qty:1,HargaJual:Number(p.HargaJual||0),Satuan:p.Satuan||'',Stok:Number(p.Stok||0),StokLayak:Number(p.StokLayak??p.Stok??0),StokKedaluwarsa:Number(p.StokKedaluwarsa||0),ExpiredBatches:Array.isArray(p.ExpiredBatches)?p.ExpiredBatches:[],JenisObat:p.JenisObat||'Bebas'});
+  ucRender();ucStatus(Number(p.StokKedaluwarsa||0)>0?'⚠ '+p.NamaProduk+' ditambahkan. Ada stok batch kedaluwarsa yang tidak dapat dijual; periksa peringatan pada keranjang.':'✓ '+p.NamaProduk+' ditambahkan. Keranjang tersinkron pada popup ini.');return p;
  }catch(e){ucStatus(e.message||String(e),true);throw e}
 }
 async function ucCheckout(){
@@ -527,7 +566,7 @@ async function ucCheckout(){
   document.getElementById('ucReceipt').innerHTML='<strong>✓ Transaksi berhasil diposting</strong><div class="uc-muted">No. Struk: '+ucEsc(result.sale.noStruk)+'</div><div style="font-size:22px;font-weight:800;margin-top:8px">'+ucMoney(result.sale.total)+'</div><div class="uc-muted">'+ucEsc(result.sale.metodePembayaran)+' · '+ucEsc(result.sale.items?.length||0)+' baris transaksi</div>';
   UC.cart=[];ucRender();ucStatus('Transaksi tersimpan. Daftar Penjualan dan Transaksi Terbaru menggunakan data server yang sama.');
   try{const target=embedded?window.parent:window.opener;target?.postMessage({type:'APOTEK_UNIFIED_CASHIER_SALE_POSTED',nonce,requestId,sale:result.sale},parentOrigin)}catch(e){}
- }catch(e){if(!ucHandleExpiredCheckout_(e)){ucStatus('Konfirmasi belum diterima: '+(e.message||e)+'. Keranjang dan ID transaksi dipertahankan. Tekan POSTING PENJUALAN kembali untuk memeriksa status transaksi yang sama.',true)}}
+ }catch(e){if(!ucHandleCartValidationError_(e)){ucStatus('Konfirmasi belum diterima: '+(e.message||e)+'. Keranjang dan ID transaksi dipertahankan. Tekan POSTING PENJUALAN kembali untuk memeriksa status transaksi yang sama.',true)}}
  finally{UC.busy=false;btn.disabled=false;btn.textContent='POSTING PENJUALAN'}
 }
 function ucBind(){
@@ -540,7 +579,7 @@ function ucBind(){
  ['ucDiscount','ucTax','ucCashReceived'].forEach(id=>document.getElementById(id)?.addEventListener('input',ucRender));
  document.getElementById('ucTransactionType')?.addEventListener('change',e=>{document.getElementById('ucPrescriptionWrap').style.display=e.target.value==='Resep'?'':'none'});
  document.getElementById('ucPayment')?.addEventListener('change',e=>{document.getElementById('ucCashWrap').style.display=e.target.value==='Cash'?'':'none';ucRender()});
- document.getElementById('ucClearCart')?.addEventListener('click',()=>{if(UC.pendingCheckout){ucStatus('Transaksi masih menunggu konfirmasi server.',true);return}if(confirm('Kosongkan seluruh keranjang?')){UC.cart=[];ucRender();ucStatus('Keranjang dikosongkan.')}});
+ document.getElementById('ucClearCart')?.addEventListener('click',()=>{if(UC.pendingCheckout){ucStatus('Transaksi masih menunggu konfirmasi server.',true);return}if(confirm('Kosongkan seluruh keranjang?')){UC.cart=[];UC_EXPIRED_ISSUES_=[];UC_STOCK_ISSUES_=[];document.getElementById('ucExpiredCartOverlay')?.remove();ucRender();ucStatus('Keranjang dikosongkan.')}});
  document.getElementById('ucCheckout')?.addEventListener('click',ucCheckout);
 }
 ucBind();
