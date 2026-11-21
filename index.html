@@ -196,6 +196,33 @@ body.product-mode #status,body.product-mode .scanner-camera-column>.row:first-of
 }
 
 .uc-cart-warning{display:none;margin:8px 0 10px;padding:10px 12px;border:1px solid rgba(255,190,90,.5);border-radius:10px;background:rgba(125,72,18,.22);color:#ffe2ad;font-size:12px;line-height:1.45}.uc-cart-warning strong{display:block;margin-bottom:3px}.uc-stock-dialog{border-color:rgba(255,205,110,.55)}.uc-stock-dialog h3{color:#ffe0a3}.uc-stock-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px}.uc-stock-adjust{border:0;border-radius:9px;padding:9px 11px;background:#167b70;color:white;font-weight:750;cursor:pointer}.uc-stock-remove{border:0;border-radius:9px;padding:9px 11px;background:#b93838;color:white;font-weight:750;cursor:pointer}.uc-stock-qty{display:flex;align-items:center;gap:8px;margin-top:7px}.uc-stock-qty input{width:90px;background:#0b1929;color:white;border:1px solid #456078;border-radius:8px;padding:7px}
+
+/* v5.3.15 — receipt preview inside Unified Cashier popup */
+#ucReceipt.uc-receipt-preview{display:block!important;margin-top:14px;border:1px solid #b8c7d8;background:#f8fafc;color:#111827}
+#ucReceipt .uc-receipt-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+#ucReceipt .uc-receipt-paper{width:min(100%,380px);margin:0 auto;padding:16px 18px;background:#fff;color:#111;border:1px dashed #94a3b8;box-shadow:0 5px 18px rgba(15,23,42,.08);font:12px/1.4 "Courier New",monospace}
+#ucReceipt .uc-receipt-paper .uc-r-center{text-align:center}
+#ucReceipt .uc-receipt-paper .uc-r-title{font-size:16px;font-weight:800;letter-spacing:.4px}
+#ucReceipt .uc-receipt-paper .uc-r-muted{color:#475569;font-size:11px}
+#ucReceipt .uc-receipt-paper .uc-r-line{display:flex;justify-content:space-between;gap:10px;margin:4px 0}
+#ucReceipt .uc-receipt-paper .uc-r-line>*:last-child{text-align:right}
+#ucReceipt .uc-receipt-paper .uc-r-rule{border:0;border-top:1px dashed #64748b;margin:9px 0}
+#ucReceipt .uc-receipt-paper .uc-r-item{margin:7px 0}
+#ucReceipt .uc-receipt-paper .uc-r-total{font-size:15px;font-weight:900}
+#ucReceipt .uc-receipt-paper .uc-r-footer{text-align:center;margin-top:12px}
+#ucReceipt .uc-receipt-actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+#ucReceipt .uc-receipt-actions button{min-width:130px}
+@media print{
+ body.uc-print-receipt *{visibility:hidden!important}
+ body.uc-print-receipt #ucReceipt,
+ body.uc-print-receipt #ucReceipt *{visibility:visible!important}
+ body.uc-print-receipt #ucReceipt{position:absolute!important;left:0!important;top:0!important;width:100%!important;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important;background:#fff!important}
+ body.uc-print-receipt #ucReceipt .uc-receipt-toolbar,
+ body.uc-print-receipt #ucReceipt .uc-receipt-actions{display:none!important}
+ body.uc-print-receipt #ucReceipt .uc-receipt-paper{width:var(--uc-receipt-width,80mm)!important;max-width:80mm!important;margin:0 auto!important;padding:1mm!important;border:0!important;box-shadow:none!important;font-size:11px!important}
+ @page{margin:2mm}
+}
+
 </style>
 
 <style>
@@ -470,6 +497,44 @@ function ucRender(){
  const t=ucTotals();document.getElementById('ucGross').textContent=ucMoney(t.gross);document.getElementById('ucDiscountValue').textContent=ucMoney(t.discount);document.getElementById('ucTaxValue').textContent=ucMoney(t.tax);document.getElementById('ucGrandTotal').textContent=ucMoney(t.total);document.getElementById('ucChange').textContent=ucMoney(t.change);
 }
 function ucEsc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+function ucBuildReceiptHtml_(sale,sourceSale){
+ const s=sale&&typeof sale==='object'?sale:{},original=sourceSale||{};
+ const items=(Array.isArray(s.items)?s.items:[]).map(x=>{
+  const qty=Number(x.qty??x.Qty??0)||0,price=Number(x.harga??x.HargaJual??0)||0;
+  return {name:String(x.nama||x.NamaProduk||x.ProdukID||'Produk'),qty,price,subtotal:Number(x.subtotal??x.Subtotal??qty*price)||0,batch:String(x.batch||x.NoBatch||''),expired:String(x.expired||x.Expired||''),location:String(x.lokasi||x.LokasiDetail||'')};
+ });
+ const gross=Number(s.gross??s.subtotal??items.reduce((n,x)=>n+x.subtotal,0))||0;
+ const discount=Number(s.discount??0)||0,tax=Number(s.tax??0)||0;
+ const total=Number(s.total??(gross-discount+tax))||0;
+ const method=String(s.metodePembayaran||original.metodePembayaran||'Cash');
+ const received=s.uangDiterima??original.uangDiterima??null;
+ const change=s.kembalian??original.kembalian??(received==null?null:Number(received)-total);
+ const date=String(s.tanggal||original.tanggal||new Date().toLocaleDateString('id-ID'));
+ const customer=String(s.customer||s.Customer||original.customer||'Umum');
+ const itemHtml=items.map(x=>'<div class="uc-r-item"><div><strong>'+ucEsc(x.name)+'</strong></div><div class="uc-r-line"><span>'+x.qty+' x '+ucMoney(x.price)+'</span><strong>'+ucMoney(x.subtotal)+'</strong></div>'+(x.batch?'<div class="uc-r-muted">Batch: '+ucEsc(x.batch)+(x.expired?' · Exp: '+ucEsc(x.expired):'')+'</div>':'')+(x.location?'<div class="uc-r-muted">Lokasi: '+ucEsc(x.location)+'</div>':'')+'</div>').join('');
+ return '<div class="uc-receipt-toolbar"><strong>✓ Transaksi berhasil · Preview Struk</strong><span class="uc-muted">No. Struk: '+ucEsc(s.noStruk||original.noStruk||'-')+'</span></div>'+
+  '<div class="uc-receipt-paper" id="ucReceiptPaper" style="--uc-receipt-width:80mm"><div class="uc-r-center"><div class="uc-r-title">APOTEK</div><div class="uc-r-muted">BUKTI TRANSAKSI PENJUALAN</div></div><hr class="uc-r-rule">'+
+  '<div>No. Struk: '+ucEsc(s.noStruk||original.noStruk||'-')+'</div><div>Tanggal: '+ucEsc(date)+'</div><div>Pelanggan: '+ucEsc(customer)+'</div><div>Pembayaran: '+ucEsc(method)+'</div><hr class="uc-r-rule">'+itemHtml+'<hr class="uc-r-rule">'+
+  '<div class="uc-r-line"><span>Subtotal</span><strong>'+ucMoney(gross)+'</strong></div><div class="uc-r-line"><span>Diskon</span><span>- '+ucMoney(discount)+'</span></div><div class="uc-r-line"><span>Pajak</span><span>'+ucMoney(tax)+'</span></div><div class="uc-r-line uc-r-total"><span>TOTAL</span><strong>'+ucMoney(total)+'</strong></div>'+
+  (method.toLowerCase()==='cash'&&received!=null?'<hr class="uc-r-rule"><div class="uc-r-line"><span>Uang diterima</span><span>'+ucMoney(received)+'</span></div><div class="uc-r-line"><span>Kembalian</span><strong>'+ucMoney(change||0)+'</strong></div>':'')+
+  '<hr class="uc-r-rule"><div class="uc-r-footer">Terima kasih atas kunjungan Anda</div></div>'+
+  '<div class="uc-receipt-actions"><button type="button" class="uc-btn" id="ucPrintReceipt">🖨 Cetak Struk</button><button type="button" class="uc-btn secondary" id="ucHideReceipt">Tutup Preview</button></div>';
+}
+function ucShowReceiptPreview_(sale,originalSale){
+ const host=document.getElementById('ucReceipt');if(!host)return;
+ host.innerHTML=ucBuildReceiptHtml_(sale,originalSale);
+ host.hidden=false;host.classList.add('uc-receipt-preview');
+ host.scrollIntoView({behavior:'smooth',block:'nearest'});
+ document.getElementById('ucPrintReceipt')?.addEventListener('click',()=>{
+  document.body.classList.add('uc-print-receipt');
+  const cleanup=()=>document.body.classList.remove('uc-print-receipt');
+  window.addEventListener('afterprint',cleanup,{once:true});
+  try{window.print()}catch(e){cleanup();ucStatus('Dialog cetak gagal dibuka: '+(e.message||e),true)}
+  setTimeout(cleanup,1500);
+ });
+ document.getElementById('ucHideReceipt')?.addEventListener('click',()=>{host.hidden=true;host.classList.remove('uc-receipt-preview')});
+}
 function ucStatus(msg,error=false){const el=document.getElementById('ucStatus');if(el){el.textContent=msg;el.style.color=error?'#ffaaa8':'#9debd7'}}
 let UC_EXPIRED_ISSUES=[];
 let UC_STOCK_ISSUES_=[];
@@ -562,9 +627,10 @@ async function ucCheckout(){
  }
  try{
   const result=await submitToServerBridge_('kasir_api',requestId,{action:'checkout',sale});
-  UC.lastPosted=result.sale;UC.pendingCheckout=null;try{sessionStorage.removeItem('apotek_unified_cashier_pending')}catch(e){}document.getElementById('ucReceipt').hidden=false;
-  document.getElementById('ucReceipt').innerHTML='<strong>✓ Transaksi berhasil diposting</strong><div class="uc-muted">No. Struk: '+ucEsc(result.sale.noStruk)+'</div><div style="font-size:22px;font-weight:800;margin-top:8px">'+ucMoney(result.sale.total)+'</div><div class="uc-muted">'+ucEsc(result.sale.metodePembayaran)+' · '+ucEsc(result.sale.items?.length||0)+' baris transaksi</div>';
-  UC.cart=[];ucRender();ucStatus('Transaksi tersimpan. Daftar Penjualan dan Transaksi Terbaru menggunakan data server yang sama.');
+  const receiptSource={...sale,uangDiterima:method==='Cash'?t.cash:null,kembalian:method==='Cash'?t.change:null};
+  UC.lastPosted=result.sale;UC.pendingCheckout=null;try{sessionStorage.removeItem('apotek_unified_cashier_pending')}catch(e){}
+  ucShowReceiptPreview_(result.sale,receiptSource);
+  UC.cart=[];ucRender();ucStatus('Transaksi tersimpan. Preview struk tersedia pada popup Unified Cashier.');
   try{const target=embedded?window.parent:window.opener;target?.postMessage({type:'APOTEK_UNIFIED_CASHIER_SALE_POSTED',nonce,requestId,sale:result.sale},parentOrigin)}catch(e){}
  }catch(e){if(!ucHandleCartValidationError_(e)){ucStatus('Konfirmasi belum diterima: '+(e.message||e)+'. Keranjang dan ID transaksi dipertahankan. Tekan POSTING PENJUALAN kembali untuk memeriksa status transaksi yang sama.',true)}}
  finally{UC.busy=false;btn.disabled=false;btn.textContent='POSTING PENJUALAN'}
