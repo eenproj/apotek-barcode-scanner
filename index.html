@@ -221,10 +221,10 @@ body.product-mode #status,body.product-mode .scanner-camera-column>.row:first-of
   <div id="status" class="status" role="status" aria-live="polite">Menyiapkan scanner…</div><div id="scannerLiveStatus" class="sr-only" aria-live="polite"></div>
   <div class="row"><input id="manual" class="field" autocomplete="off" inputmode="text" placeholder="Atau masukkan barcode manual"><button id="sendManual" class="primary" type="button">Kirim barcode</button></div>
   <div id="scannerControlHost" class="scanner-control-host"><div class="scanner-control-row" id="scannerControlRow">
-   <button id="retry" class="scanner-icon-btn" type="button" aria-label="Aktifkan kamera" title="Aktifkan kamera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5"/><path d="M19 12a7 7 0 1 1-2-5l3 5"/></svg></button><button id="stopCamera" class="scanner-icon-btn" type="button" aria-label="Nonaktifkan kamera" title="Nonaktifkan kamera" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>
+   <button id="retry" class="scanner-icon-btn" type="button" aria-label="Coba kamera lagi" title="Coba kamera lagi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5"/><path d="M19 12a7 7 0 1 1-2-5l3 5"/></svg></button>
    <button id="flip" class="scanner-icon-btn" type="button" aria-label="Ganti kamera" title="Ganti kamera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h13l-3-3"/><path d="M20 7l-3 3"/><path d="M17 17H4l3 3"/><path d="M4 17l3-3"/></svg></button>
    <label class="scanner-sensitivity-label" for="scanSensitivity">Sensitivitas</label>
-   <select id="scanSensitivity" class="field" aria-label="Sensitivitas pemindaian"><option value="normal">Normal</option><option value="normal" selected>Tinggi</option><option value="ultra">Ultra</option></select>
+   <select id="scanSensitivity" class="field" aria-label="Sensitivitas pemindaian"><option value="normal" selected>Normal</option><option value="high">Tinggi</option><option value="ultra">Ultra</option></select>
    <button id="scannerInfoBtn" class="scanner-icon-btn scanner-info-btn" type="button" aria-label="Informasi scanner" title="Informasi scanner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg></button>
   </div></div>
  </div>
@@ -310,7 +310,7 @@ let productSaveRequestId='', productPendingPayloadJson='', productSaveAckTimer=n
 let barcodePendingRequestId='',barcodePendingTimer=null,barcodeRetryCount=0;
 const SCANNER_INPUT_ENGINE={buffer:'',lastAt:0,startAt:0,gapMs:120,maxLength:128};
 const SCAN_PROFILES={normal:{fps:12,box:.78,max:380,angleStep:2,engineFps:3},high:{fps:18,box:.86,max:480,angleStep:1,engineFps:5},ultra:{fps:24,box:.92,max:560,angleStep:1,engineFps:7}};
-let activeScanProfile='high';
+let activeScanProfile='normal';
 let angleEngine={detector:null,raf:0,lastRun:0,busy:false,video:null,canvas:null,ctx:null,active:false,rotationIndex:0,lastEngineCode:'',lastEngineAt:0,errors:0};
 const barcodeEngineSelection={mode:'initializing',nativeAvailable:false,nativeFormats:[],fallback:'html5-qrcode',nativeErrors:0};
 if(mode==='product'){
@@ -761,13 +761,11 @@ async function startCamera(){
   initScannerControlOverlay_();
   await startMultiAngleEngine_();
   setCameraActiveLabel_(getActiveCameraLabel_());
-  document.getElementById('stopCamera').disabled=false;document.getElementById('retry').disabled=true;
   setStatus((isMobileScannerDevice()?(cameraFacingMode==='user'?'Kamera depan aktif':'Kamera belakang aktif'):'Kamera aktif')+' — sensitivitas '+activeScanProfile.toUpperCase()+'. Automatic Barcode Engine siap.');
   post('APOTEK_SCANNER_ENGINE_STATUS',getBarcodeEngineDiagnostics_());
   return true;
  }catch(e){
   const n=String(e&&e.name||''),m=String(e&&e.message||e||'');
-  document.getElementById('stopCamera').disabled=true;document.getElementById('retry').disabled=false;
   let tip='Periksa izin kamera browser dan tutup aplikasi lain yang sedang memakai kamera.';
   if(n==='NotAllowedError'||/permission denied|notallowederror/i.test(m)){
    const policy=document.permissionsPolicy||document.featurePolicy;
@@ -982,8 +980,7 @@ window.addEventListener('message',event=>{
 });
 const sendManualBtn=document.getElementById('sendManual');if(sendManualBtn)sendManualBtn.addEventListener('click',()=>sendCode(document.getElementById('manual')?.value||''));
 document.getElementById('manual')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendCode(e.currentTarget.value)}});
-document.getElementById('retry').addEventListener('click',startCamera);
-document.getElementById('stopCamera').addEventListener('click',async()=>{await stopCamera();setCameraActiveLabel_('Kamera nonaktif');setStatus('Kamera dinonaktifkan. Scanner tetap terbuka; aktifkan kembali bila diperlukan.');document.getElementById('stopCamera').disabled=true;document.getElementById('retry').disabled=false;});
+document.getElementById('retry').addEventListener('click',async()=>{const b=document.getElementById('retry');if(qr&&qr.isScanning){await stopCamera();setStatus('Kamera dinonaktifkan. Scanner tetap siap untuk input manual/USB.');setCameraActiveLabel_('Kamera nonaktif');b.textContent='Aktifkan Kamera';}else{b.textContent='Mengaktifkan…';await startCamera();if(qr&&qr.isScanning)b.textContent='Nonaktifkan Kamera';else b.textContent='Aktifkan Kamera';}});
 const scannerInfoDialog=document.getElementById('scannerInfoDialog');
 renderScannerInfo_();
 function closeScannerInfo_(){if(!scannerInfoDialog)return;scannerInfoDialog.classList.remove('is-open');scannerInfoDialog.setAttribute('aria-hidden','true');}
@@ -993,10 +990,9 @@ scannerInfoDialog?.addEventListener('click',e=>{if(e.target===scannerInfoDialog)
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeScannerInfo_();});
 document.getElementById('scanSensitivity')?.addEventListener('change',e=>setScanSensitivity_(e.target.value));
 document.getElementById('flip').addEventListener('click',async()=>{
+ if(!qr||!qr.isScanning){setStatus('Aktifkan kamera terlebih dahulu untuk mengganti kamera.');return;}
  const mobile=isMobileScannerDevice();
  if(mobile){
-  // Selalu coba beralih antara kamera belakang dan depan. Jangan bergantung
-  // pada jumlah deviceId yang dilaporkan enumerateDevices/getCameras.
   cameraFacingMode=cameraFacingMode==='environment'?'user':'environment';
   cameraSwitchRequested=true;
   setStatus(cameraFacingMode==='user'?'Mengaktifkan kamera depan…':'Mengaktifkan kamera belakang…');
@@ -1005,7 +1001,7 @@ document.getElementById('flip').addEventListener('click',async()=>{
   return;
  }
  cameras=await Html5Qrcode.getCameras().catch(()=>cameras);
- if(cameras.length<2){setStatus('Browser hanya melaporkan satu kamera yang dapat diakses.');return}
+ if(cameras.length<2){setStatus('Browser hanya melaporkan satu kamera yang dapat diakses.');return;}
  cameraIndex=(cameraIndex+1)%cameras.length;cameraSwitchRequested=true;setStatus('Mengganti kamera…');await startCamera();
 });
 document.getElementById('closeBtn').addEventListener('click',async()=>{
@@ -1019,7 +1015,7 @@ if(!nonce||!allowedParent||!parentWindow){
  setCameraActiveLabel_('Koneksi scanner tidak valid');
  setProductSaveStatus('Koneksi ke tab aplikasi utama tidak tersedia. Pastikan scanner dibuka melalui tombol di aplikasi Apotek.', 'error');
  setStatus('Buka halaman scanner melalui tombol Barcode Scanner di aplikasi Apotek. Jangan membuka URL ini secara langsung.',true);
- document.getElementById('retry').disabled=true;document.getElementById('stopCamera').disabled=true;
+ document.getElementById('retry').disabled=true;
  document.getElementById('sendManual').disabled=true;
 }
 else{
@@ -1027,7 +1023,8 @@ else{
  const requestInit=()=>post('APOTEK_SCANNER_READY');
  requestInit();
  scannerInitRetryTimer=setInterval(()=>{if(!parentReady)requestInit();else{clearInterval(scannerInitRetryTimer);scannerInitRetryTimer=null;}},1200);
- setCameraActiveLabel_('Kamera nonaktif');setStatus('Scanner siap. Tekan tombol Aktifkan Kamera untuk mulai memindai.');
+ setStatus('Kamera nonaktif. Tekan Aktifkan Kamera ketika siap memindai.');
+ document.getElementById('retry').textContent='Aktifkan Kamera';
 }
 })();
 </script>
