@@ -643,7 +643,7 @@ async function ucCheckout(){
   const receiptSource={...sale,uangDiterima:method==='Cash'?t.cash:null,kembalian:method==='Cash'?t.change:null};
   UC.lastPosted=result.sale;UC.pendingCheckout=null;try{sessionStorage.removeItem('apotek_unified_cashier_pending')}catch(e){}
   ucShowReceiptPreview_(result.sale,receiptSource);
-  UC.cart=[];ucRender();ucStatus('Transaksi tersimpan. Preview struk tersedia pada popup Unified Cashier.');
+  UC.cart=[];ucRender();ucStatus('Transaksi tersimpan.');
   try{const target=embedded?window.parent:window.opener;target?.postMessage({type:'APOTEK_UNIFIED_CASHIER_SALE_POSTED',nonce,requestId,sale:result.sale},parentOrigin)}catch(e){}
  }catch(e){if(!ucHandleCartValidationError_(e)){ucStatus('Konfirmasi belum diterima: '+(e.message||e)+'. Keranjang dan ID transaksi dipertahankan. Tekan POSTING PENJUALAN kembali untuk memeriksa status transaksi yang sama.',true)}}
  finally{UC.busy=false;btn.disabled=false;btn.textContent='POSTING PENJUALAN'}
