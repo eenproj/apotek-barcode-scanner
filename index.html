@@ -326,7 +326,7 @@ body.product-mode #status,body.product-mode .scanner-camera-column>.row:first-of
 const params=new URLSearchParams(location.search);
 const nonce=params.get('nonce')||'';
 const parentOrigin=params.get('parentOrigin')||'';
-const allowedParent=/^https:\/\/script\.google\.com$/.test(parentOrigin)||/^https:\/\/[a-z0-9-]+-script\.googleusercontent\.com$/.test(parentOrigin);
+const allowedParent=/^https:\/\/eenproj\.github\.io$/.test(parentOrigin)||/^https:\/\/script\.google\.com$/.test(parentOrigin)||/^https:\/\/[a-z0-9-]+-script\.googleusercontent\.com$/.test(parentOrigin);
 let mode=params.get('mode')==='product'?'product':'kasir';
 if(mode==='product')document.body.classList.add('product-mode');
 const statusEl=mode==='product'?null:document.getElementById('status');
