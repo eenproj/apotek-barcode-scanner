@@ -416,25 +416,26 @@ function submitToServerBridge_(mode,requestId,payload){
   const fields={token:sessionToken,mode,requestId,payload:JSON.stringify(body),clientStartedAt:String(requestStartedAt),recoveryKey:recoveryKey};
   let settled=false,iframeLoadCount=0,formSubmitted=false,postSubmittedAt=0,postSubmittedPerf=0,ackReceivedAt=0,pollTimer=0,pollStartedAt=0,pollCount=0,pollInFlight=false;
   const RECOVERY_WINDOW_MS=600000,RECOVERY_POLL_MS=2000;
+  const diag=(stage,extra)=>{try{const item=Object.assign({tag:'APOTEK_SCANNER_LIFECYCLE',stage,requestId,at:new Date().toISOString(),elapsedMs:elapsed(),visibility:document.visibilityState,online:navigator.onLine},extra||{});console.info('[APOTEK_SCANNER_LIFECYCLE]',item);const k='apotek_scanner_lifecycle_diag_v1';const a=JSON.parse(localStorage.getItem(k)||'[]');a.push(item);while(a.length>100)a.shift();localStorage.setItem(k,JSON.stringify(a));}catch(_){}};
   console.info('[APOTEK_E2E] REQUEST_START',{mode,requestId,clientStartedAt:requestStartedAt,clientStartedPerf:requestStartedPerf,recoveryEnabled:mode==='kasir_api'});
   console.info('[APOTEK_BRIDGE_DIAG] POST_START',{mode,requestId,bridgeOrigin:(()=>{try{return new URL(bridgeUrl).origin}catch(e){return 'invalid-url'}})(),payloadLength:fields.payload.length});
   Object.keys(fields).forEach(k=>{const input=document.createElement('input');input.type='hidden';input.name=k;input.value=String(fields[k]);form.appendChild(input)});
   function elapsed(){return Math.round(((window.performance&&performance.now)?performance.now():requestStartedPerf)-requestStartedPerf)}
-  function cleanup(){window.removeEventListener('message',onMessage);if(pollTimer)clearTimeout(pollTimer);form.remove();frame.remove()}
+  function cleanup(){diag('CLEANUP',{iframeLoadCount,pollCount,formSubmitted});window.removeEventListener('message',onMessage);if(pollTimer)clearTimeout(pollTimer);form.remove();frame.remove()}
   function finish(fn,value){if(settled)return;settled=true;clearTimeout(timeout);if(pollTimer)clearTimeout(pollTimer);const end=Date.now();console.info('[APOTEK_E2E] REQUEST_FINISH',{mode,requestId,outcome:fn===resolve?'ACK_RECEIVED':'FAILED',clientTotalMs:elapsed(),wallTotalMs:end-requestStartedAt,postToAckMs:ackReceivedAt&&postSubmittedPerf?Math.round(ackReceivedAt-postSubmittedPerf):null,iframeLoadCount,pollCount,serverTrace:value&&value._e2e?value._e2e:null});cleanup();fn(value)}
-  frame.addEventListener('load',()=>{iframeLoadCount++;console.info('[APOTEK_BRIDGE_DIAG] IFRAME_LOAD',{mode,requestId,loadCount:iframeLoadCount,elapsedMs:elapsed(),frameUrl:(()=>{try{return frame.contentWindow.location.href}catch(e){return 'cross-origin'}})()});});
+  frame.addEventListener('load',()=>{iframeLoadCount++;diag('IFRAME_LOAD',{iframeLoadCount,frameConnected:frame.isConnected});console.info('[APOTEK_BRIDGE_DIAG] IFRAME_LOAD',{mode,requestId,loadCount:iframeLoadCount,elapsedMs:elapsed(),frameUrl:(()=>{try{return frame.contentWindow.location.href}catch(e){return 'cross-origin'}})()});});
   function scheduleRecovery(delay){if(settled||mode!=='kasir_api')return;if(pollTimer)clearTimeout(pollTimer);pollTimer=setTimeout(pollRecovery,delay||RECOVERY_POLL_MS)}
   function pollRecovery(){
    if(settled||pollInFlight||!formSubmitted)return;
-   if(!pollStartedAt)pollStartedAt=Date.now();
+   if(!pollStartedAt){pollStartedAt=Date.now();diag('RECOVERY_STARTED',{recoveryWindowMs:RECOVERY_WINDOW_MS});}
    if(Date.now()-pollStartedAt>RECOVERY_WINDOW_MS){console.error('[APOTEK_ACK_RECOVERY] WINDOW_EXPIRED',{requestId,pollCount,elapsedMs:Date.now()-pollStartedAt});finish(reject,new Error('Hasil request belum dapat dipulihkan setelah 10 menit. Operasi tidak dikirim ulang; periksa status request sebelum mencoba kembali.'));return;}
-   pollInFlight=true;pollCount++;
+   pollInFlight=true;pollCount++;diag('RECOVERY_POLL_START',{pollCount});
    const callbackName='__apotekAck_'+safeId.replace(/[^A-Za-z0-9_]/g,'')+'_'+pollCount;
    const script=document.createElement('script');script.async=true;script.referrerPolicy='no-referrer';
    let callbackDone=false;let pollWatchdog=0;
    const finishPoll=()=>{if(callbackDone)return;callbackDone=true;if(pollWatchdog)clearTimeout(pollWatchdog);pollInFlight=false;try{delete window[callbackName]}catch(_){window[callbackName]=undefined}script.remove();};
    window[callbackName]=function(data){finishPoll();if(settled)return;
-    console.info('[APOTEK_ACK_RECOVERY] STATUS',{requestId,state:data&&data.state,pollCount,elapsedMs:Date.now()-pollStartedAt});
+    diag('RECOVERY_STATUS',{pollCount,state:data&&data.state,requestIdMatch:!!(data&&data.requestId===String(requestId))});console.info('[APOTEK_ACK_RECOVERY] STATUS',{requestId,state:data&&data.state,pollCount,elapsedMs:Date.now()-pollStartedAt});
     if(data&&data.requestId===String(requestId)&&data.state==='COMPLETED'&&data.result&&data.result.requestId===String(requestId)){
       const r=data.result;ackReceivedAt=(window.performance&&performance.now)?performance.now():0;
       console.info('[APOTEK_ACK_RECOVERY] RESULT_RECOVERED',{requestId,pollCount,serverTrace:r._e2e||null,serverElapsedMs:r.serverElapsedMs??null});
@@ -444,15 +445,15 @@ function submitToServerBridge_(mode,requestId,payload){
     if(data&&data.state==='NOT_FOUND')console.warn('[APOTEK_ACK_RECOVERY] REGISTRY_MISS',{requestId,pollCount});
     scheduleRecovery(Math.min(10000,RECOVERY_POLL_MS+Math.max(0,pollCount-1)*900));
    };
-   script.onerror=function(){finishPoll();if(!settled){console.warn('[APOTEK_ACK_RECOVERY] POLL_TRANSPORT_ERROR',{requestId,pollCount});scheduleRecovery(Math.min(12000,3000+pollCount*700));}};
-   script.onload=function(){if(!callbackDone){pollWatchdog=setTimeout(()=>{finishPoll();if(!settled){console.warn('[APOTEK_ACK_RECOVERY] CALLBACK_NOT_EXECUTED',{requestId,pollCount});scheduleRecovery(RECOVERY_POLL_MS);}},8000);}};
+   script.onerror=function(){finishPoll();diag('RECOVERY_SCRIPT_ERROR',{pollCount,scriptUrlOrigin:(()=>{try{return new URL(script.src).origin}catch(_){return 'invalid'}})()});if(!settled){console.warn('[APOTEK_ACK_RECOVERY] POLL_TRANSPORT_ERROR',{requestId,pollCount});scheduleRecovery(Math.min(12000,3000+pollCount*700));}};
+   script.onload=function(){diag('RECOVERY_SCRIPT_LOAD',{pollCount,callbackExecuted:callbackDone});if(!callbackDone){pollWatchdog=setTimeout(()=>{finishPoll();if(!settled){diag('RECOVERY_CALLBACK_NOT_EXECUTED',{pollCount});console.warn('[APOTEK_ACK_RECOVERY] CALLBACK_NOT_EXECUTED',{requestId,pollCount});scheduleRecovery(RECOVERY_POLL_MS);}},8000);}};
    try{
     const u=new URL(bridgeUrl);u.searchParams.set('bridgeStatus','1');u.searchParams.set('requestId',String(requestId));u.searchParams.set('recoveryKey',recoveryKey);u.searchParams.set('callback',callbackName);u.searchParams.set('_ts',String(Date.now()));
     script.src=u.toString();(document.head||document.body).appendChild(script);
    }catch(e){finishPoll();console.error('[APOTEK_ACK_RECOVERY] URL_ERROR',{requestId,error:String(e)});scheduleRecovery(RECOVERY_POLL_MS);}
   }
   const timeout=setTimeout(()=>{
-   if(mode==='kasir_api'&&formSubmitted){console.warn('[APOTEK_E2E] ACK_PENDING_RECOVERY',{mode,requestId,formSubmitted,iframeLoadCount,clientElapsedMs:elapsed(),recoveryWindowMs:RECOVERY_WINDOW_MS});ucStatusSafeRecovery_('Server masih memproses permintaan. Memeriksa status secara otomatis hingga 10 menit; lookup tidak dikirim ulang…');scheduleRecovery(0);return;}
+   if(mode==='kasir_api'&&formSubmitted){diag('ACK_PENDING_RECOVERY',{iframeLoadCount,formSubmitted,recoveryWindowMs:RECOVERY_WINDOW_MS});console.warn('[APOTEK_E2E] ACK_PENDING_RECOVERY',{mode,requestId,formSubmitted,iframeLoadCount,clientElapsedMs:elapsed(),recoveryWindowMs:RECOVERY_WINDOW_MS});ucStatusSafeRecovery_('Server masih memproses permintaan. Memeriksa status secara otomatis hingga 10 menit; lookup tidak dikirim ulang…');scheduleRecovery(0);return;}
    console.error('[APOTEK_E2E] TIMEOUT',{mode,requestId,formSubmitted,iframeLoadCount,clientElapsedMs:elapsed(),serverAckState:'NOT_RECEIVED'});
    finish(reject,new Error('Server belum memberikan konfirmasi setelah 40 detik. Diagnostik: formSubmitted='+formSubmitted+', iframeLoadCount='+iframeLoadCount+'. Operasi server mungkin sudah selesai; jangan pindai ulang sebelum memeriksa status request.'));
   },40000);
@@ -463,7 +464,7 @@ function submitToServerBridge_(mode,requestId,payload){
    const sourceMatches=event.source===frame.contentWindow;
    const messageOrigin=String(event.origin||'');let trustedOrigin=false;
    try{const u=new URL(messageOrigin),h=u.hostname.toLowerCase();trustedOrigin=u.protocol==='https:'&&(h==='script.google.com'||h==='googleusercontent.com'||h.endsWith('.googleusercontent.com'));}catch(e){trustedOrigin=false;}
-   console.info('[APOTEK_E2E] MESSAGE_OBSERVED',{mode,requestId,origin:messageOrigin,trustedOrigin,sourceMatches,channel,expectedRequestId:String(requestId),receivedRequestId:receivedId,elapsedMs:elapsed()});
+   diag('MESSAGE_OBSERVED',{origin:messageOrigin,trustedOrigin,sourceMatches,channel,receivedRequestId:receivedId});console.info('[APOTEK_E2E] MESSAGE_OBSERVED',{mode,requestId,origin:messageOrigin,trustedOrigin,sourceMatches,channel,expectedRequestId:String(requestId),receivedRequestId:receivedId,elapsedMs:elapsed()});
    if(!trustedOrigin||channel!=='APOTEK_BARCODE_HTTP'||receivedId!==String(requestId))return;
    const r=nested||{};ackReceivedAt=(window.performance&&performance.now)?performance.now():0;
    console.info('[APOTEK_E2E] ACK_RECEIVED',{mode,requestId,clientElapsedMs:elapsed(),sourceMatches,serverTrace:r._e2e||null,serverElapsedMs:r.serverElapsedMs??null});
@@ -471,7 +472,7 @@ function submitToServerBridge_(mode,requestId,payload){
   }
   window.addEventListener('message',onMessage);
   document.body.appendChild(frame);document.body.appendChild(form);
-  requestAnimationFrame(()=>{if(settled)return;try{formSubmitted=true;postSubmittedAt=Date.now();postSubmittedPerf=(window.performance&&performance.now)?performance.now():0;console.info('[APOTEK_BRIDGE_DIAG] FORM_SUBMIT',{mode,requestId,target:frameName,elapsedMs:elapsed(),clientSubmittedAt:postSubmittedAt});form.submit();if(mode==='kasir_api')scheduleRecovery(6000);}catch(e){finish(reject,new Error('Gagal mengirim formulir ke server Apps Script: '+(e.message||e)));}});
+  requestAnimationFrame(()=>{if(settled)return;try{formSubmitted=true;postSubmittedAt=Date.now();postSubmittedPerf=(window.performance&&performance.now)?performance.now():0;diag('FORM_SUBMIT',{target:frameName,iframeLoadCount});console.info('[APOTEK_BRIDGE_DIAG] FORM_SUBMIT',{mode,requestId,target:frameName,elapsedMs:elapsed(),clientSubmittedAt:postSubmittedAt});form.submit();if(mode==='kasir_api')scheduleRecovery(6000);}catch(e){finish(reject,new Error('Gagal mengirim formulir ke server Apps Script: '+(e.message||e)));}});
  });
 }
 function ucStatusSafeRecovery_(message){try{if(typeof ucStatus==='function')ucStatus(message,false);}catch(_){}}
