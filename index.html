@@ -415,7 +415,7 @@ function submitToServerBridge_(mode,requestId,payload){
   const recoveryKey=(()=>{const a=new Uint8Array(32);if(window.crypto&&crypto.getRandomValues)crypto.getRandomValues(a);else for(let i=0;i<a.length;i++)a[i]=Math.floor(Math.random()*256);return Array.from(a).map(x=>x.toString(16).padStart(2,'0')).join('')})();
   const fields={token:sessionToken,mode,requestId,payload:JSON.stringify(body),clientStartedAt:String(requestStartedAt),recoveryKey:recoveryKey};
   let settled=false,iframeLoadCount=0,formSubmitted=false,postSubmittedAt=0,postSubmittedPerf=0,ackReceivedAt=0,pollTimer=0,pollStartedAt=0,pollCount=0,pollInFlight=false;
-  const RECOVERY_WINDOW_MS=240000,RECOVERY_POLL_MS=3000;
+  const RECOVERY_WINDOW_MS=600000,RECOVERY_POLL_MS=2000;
   console.info('[APOTEK_E2E] REQUEST_START',{mode,requestId,clientStartedAt:requestStartedAt,clientStartedPerf:requestStartedPerf,recoveryEnabled:mode==='kasir_api'});
   console.info('[APOTEK_BRIDGE_DIAG] POST_START',{mode,requestId,bridgeOrigin:(()=>{try{return new URL(bridgeUrl).origin}catch(e){return 'invalid-url'}})(),payloadLength:fields.payload.length});
   Object.keys(fields).forEach(k=>{const input=document.createElement('input');input.type='hidden';input.name=k;input.value=String(fields[k]);form.appendChild(input)});
@@ -427,7 +427,7 @@ function submitToServerBridge_(mode,requestId,payload){
   function pollRecovery(){
    if(settled||pollInFlight||!formSubmitted)return;
    if(!pollStartedAt)pollStartedAt=Date.now();
-   if(Date.now()-pollStartedAt>RECOVERY_WINDOW_MS){console.error('[APOTEK_ACK_RECOVERY] WINDOW_EXPIRED',{requestId,pollCount,elapsedMs:Date.now()-pollStartedAt});finish(reject,new Error('Hasil request belum dapat dipulihkan setelah 4 menit. Operasi tidak dikirim ulang; periksa status request sebelum mencoba kembali.'));return;}
+   if(Date.now()-pollStartedAt>RECOVERY_WINDOW_MS){console.error('[APOTEK_ACK_RECOVERY] WINDOW_EXPIRED',{requestId,pollCount,elapsedMs:Date.now()-pollStartedAt});finish(reject,new Error('Hasil request belum dapat dipulihkan setelah 10 menit. Operasi tidak dikirim ulang; periksa status request sebelum mencoba kembali.'));return;}
    pollInFlight=true;pollCount++;
    const callbackName='__apotekAck_'+safeId.replace(/[^A-Za-z0-9_]/g,'')+'_'+pollCount;
    const script=document.createElement('script');script.async=true;script.referrerPolicy='no-referrer';
@@ -442,9 +442,9 @@ function submitToServerBridge_(mode,requestId,payload){
       return;
     }
     if(data&&data.state==='NOT_FOUND')console.warn('[APOTEK_ACK_RECOVERY] REGISTRY_MISS',{requestId,pollCount});
-    scheduleRecovery(RECOVERY_POLL_MS);
+    scheduleRecovery(Math.min(10000,RECOVERY_POLL_MS+Math.max(0,pollCount-1)*900));
    };
-   script.onerror=function(){finishPoll();if(!settled){console.warn('[APOTEK_ACK_RECOVERY] POLL_TRANSPORT_ERROR',{requestId,pollCount});scheduleRecovery(Math.min(8000,RECOVERY_POLL_MS+pollCount*250));}};
+   script.onerror=function(){finishPoll();if(!settled){console.warn('[APOTEK_ACK_RECOVERY] POLL_TRANSPORT_ERROR',{requestId,pollCount});scheduleRecovery(Math.min(12000,3000+pollCount*700));}};
    script.onload=function(){if(!callbackDone){pollWatchdog=setTimeout(()=>{finishPoll();if(!settled){console.warn('[APOTEK_ACK_RECOVERY] CALLBACK_NOT_EXECUTED',{requestId,pollCount});scheduleRecovery(RECOVERY_POLL_MS);}},8000);}};
    try{
     const u=new URL(bridgeUrl);u.searchParams.set('bridgeStatus','1');u.searchParams.set('requestId',String(requestId));u.searchParams.set('recoveryKey',recoveryKey);u.searchParams.set('callback',callbackName);u.searchParams.set('_ts',String(Date.now()));
@@ -452,7 +452,7 @@ function submitToServerBridge_(mode,requestId,payload){
    }catch(e){finishPoll();console.error('[APOTEK_ACK_RECOVERY] URL_ERROR',{requestId,error:String(e)});scheduleRecovery(RECOVERY_POLL_MS);}
   }
   const timeout=setTimeout(()=>{
-   if(mode==='kasir_api'&&formSubmitted){console.warn('[APOTEK_E2E] ACK_PENDING_RECOVERY',{mode,requestId,formSubmitted,iframeLoadCount,clientElapsedMs:elapsed(),recoveryWindowMs:RECOVERY_WINDOW_MS});ucStatusSafeRecovery_('Server sedang menyelesaikan permintaan. Memulihkan hasil tanpa mengirim ulang lookup…');scheduleRecovery(0);return;}
+   if(mode==='kasir_api'&&formSubmitted){console.warn('[APOTEK_E2E] ACK_PENDING_RECOVERY',{mode,requestId,formSubmitted,iframeLoadCount,clientElapsedMs:elapsed(),recoveryWindowMs:RECOVERY_WINDOW_MS});ucStatusSafeRecovery_('Server masih memproses permintaan. Memeriksa status secara otomatis hingga 10 menit; lookup tidak dikirim ulang…');scheduleRecovery(0);return;}
    console.error('[APOTEK_E2E] TIMEOUT',{mode,requestId,formSubmitted,iframeLoadCount,clientElapsedMs:elapsed(),serverAckState:'NOT_RECEIVED'});
    finish(reject,new Error('Server belum memberikan konfirmasi setelah 40 detik. Diagnostik: formSubmitted='+formSubmitted+', iframeLoadCount='+iframeLoadCount+'. Operasi server mungkin sudah selesai; jangan pindai ulang sebelum memeriksa status request.'));
   },40000);
@@ -477,7 +477,9 @@ function submitToServerBridge_(mode,requestId,payload){
 function ucStatusSafeRecovery_(message){try{if(typeof ucStatus==='function')ucStatus(message,false);}catch(_){}}
 
 
-const UC={cart:[],busy:false,lastPosted:null,pendingCheckout:null,apiQueue:Promise.resolve(),apiQueueDepth:0};
+const UC={cart:[],busy:false,lastPosted:null,pendingCheckout:null,
+ apiQueues:{lookup:Promise.resolve(),checkout:Promise.resolve(),config:Promise.resolve()},
+ apiQueueDepth:{lookup:0,checkout:0,config:0}};
 try{const pending=JSON.parse(sessionStorage.getItem('apotek_unified_cashier_pending')||'null');if(pending&&pending.sale&&pending.requestId){UC.pendingCheckout=pending;UC.cart=Array.isArray(pending.cart)?pending.cart:[];}}catch(e){}
 function ucMoney(v){return 'Rp '+Math.round(Number(v)||0).toLocaleString('id-ID')}
 function ucTotals(){
@@ -598,12 +600,21 @@ document.addEventListener('click',function(e){
 });
 function ucRequestId(){return (window.crypto&&window.crypto.randomUUID)?window.crypto.randomUUID():'uc-'+Date.now()+'-'+Math.random().toString(36).slice(2)}
 function ucApi(action,payload){
- // Satu jalur kasir_api pada satu waktu: konfigurasi awal, lookup beruntun,
- // dan aksi kasir tidak saling menavigasi / berlomba menyelesaikan bridge.
+ // Pisahkan konfigurasi, lookup produk, dan checkout agar request config
+ // atau transaksi yang lambat tidak menahan pencarian barcode di kasir.
+ // Lookup tetap berurutan untuk menjaga urutan pemindaian dan penambahan keranjang.
+ const lane=action==='lookup'?'lookup':action==='checkout'?'checkout':'config';
  const requestId=ucRequestId(),body=Object.assign({action},payload||{});
- const run=()=>{UC.apiQueueDepth++;console.info('[UC_API_QUEUE] START',{action,requestId,queueDepth:UC.apiQueueDepth});return submitToServerBridge_('kasir_api',requestId,body).finally(()=>{UC.apiQueueDepth=Math.max(0,UC.apiQueueDepth-1);console.info('[UC_API_QUEUE] END',{action,requestId,queueDepth:UC.apiQueueDepth})})};
- const task=UC.apiQueue.then(run,run);
- UC.apiQueue=task.catch(()=>{});
+ const run=()=>{
+  UC.apiQueueDepth[lane]++;
+  console.info('[UC_API_QUEUE] START',{action,requestId,lane,queueDepth:UC.apiQueueDepth[lane]});
+  return submitToServerBridge_('kasir_api',requestId,body).finally(()=>{
+   UC.apiQueueDepth[lane]=Math.max(0,UC.apiQueueDepth[lane]-1);
+   console.info('[UC_API_QUEUE] END',{action,requestId,lane,queueDepth:UC.apiQueueDepth[lane]});
+  });
+ };
+ const task=UC.apiQueues[lane].then(run,run);
+ UC.apiQueues[lane]=task.catch(()=>{});
  return task;
 }
 async function ucAddBarcode(code){
