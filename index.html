@@ -827,6 +827,16 @@ function initScannerControlOverlay_(){
 window.addEventListener('resize',scheduleScannerControlPosition_,{passive:true});
 window.addEventListener('orientationchange',()=>setTimeout(scheduleScannerControlPosition_,180),{passive:true});
 
+// v4.9.3: Pindahkan kontrol ke .stage sejak halaman dimuat, bukan hanya
+// setelah kamera berhasil start. Pada perangkat mobile/tablet, permintaan
+// izin kamera dapat tertunda/ditolak; kontrol tetap harus terlihat dan dapat
+// digunakan (retry, ganti kamera, sensitivitas, dan informasi).
+if(document.readyState==='loading'){
+ document.addEventListener('DOMContentLoaded',()=>initScannerControlOverlay_(),{once:true});
+}else{
+ initScannerControlOverlay_();
+}
+
 async function startCamera(){
  setCameraToggleUI_('off',true);
  await stopCamera();
