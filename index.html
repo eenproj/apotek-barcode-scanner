@@ -440,9 +440,6 @@ function submitToServerBridge_(mode,requestId,payload){
     const finishPoll=()=>{if(callbackDone)return;callbackDone=true;if(pollWatchdog)clearTimeout(pollWatchdog);pollInFlight=false;window.removeEventListener('message',onStatusMessage);pollFrame.remove();};
     const onStatusMessage=event=>{
      const msg=event.data;
-     if(msg&&msg.channel==='APOTEK_BARCODE_STATUS_V1'){
-      diag('RECOVERY_STATUS_MESSAGE_OBSERVED',{pollCount,origin:String(event.origin||''),requestIdMatch:String(msg.requestId)===String(requestId),nonceMatch:String(msg.statusNonce)===statusNonce});
-     }
      if(!trustedStatusOrigin(event.origin)||!msg||msg.channel!=='APOTEK_BARCODE_STATUS_V1'||String(msg.requestId)!==String(requestId)||String(msg.statusNonce)!==statusNonce)return;
      finishPoll();if(settled)return;
      const data=msg.status||{};
