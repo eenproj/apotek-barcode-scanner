@@ -340,7 +340,7 @@ const liveStatusEl=document.getElementById('scannerLiveStatus');
 const embedded=window.parent!==window;
 const parentWindow=embedded?window.parent:window.opener;
 if(embedded)document.documentElement.classList.add('apotek-scanner-embedded');
-let qr=null, cameras=[], cameraIndex=0, cameraSwitchRequested=false, cameraFacingMode='environment', lastCode='', lastAt=0, parentReady=false;
+let qr=null, cameras=[], cameraIndex=0, cameraSwitchRequested=false, cameraFacingMode='environment', lastCode='', lastAt=0, parentReady=false, cameraStartedAt=0;
 let bridgeUrl='',sessionToken='',bridgeClientId='',bridgeFrame=null,bridgeForm=null,scannerInitRetryTimer=null;
 let cashierReceiptPrefs={receiptWidth:'80',fontSize:'11',headerAlign:'center',showAddress:true,showReceiptNo:true,showPayment:true,showTransactionType:true,showSubtotal:true,showDiscount:true,showTax:true,showCashInfo:true,showThankYou:true,footerText:'Terima kasih telah berbelanja.'};
 let cashierPharmacyProfile={};
@@ -486,7 +486,7 @@ function ucStatusSafeRecovery_(message){try{if(typeof ucStatus==='function')ucSt
 function norm(v){return String(v||'').trim().replace(/\s+/g,'').toUpperCase()}
 function sendCode(raw,source='manual'){
  const code=norm(raw);if(!code)return;
- const now=Date.now();if(code===lastCode&&now-lastAt<3000)return;lastCode=code;lastAt=now;
+ const now=Date.now(),detectedAt=now,cameraToDecodeMs=cameraStartedAt?Math.max(0,now-cameraStartedAt):null;if(code===lastCode&&now-lastAt<3000)return;lastCode=code;lastAt=now;
  if(!parentReady){setStatus('Belum terhubung dengan aplikasi utama. Tutup scanner lalu buka kembali dari tombol Scan Kamera.',true);return}
  if(source==='hid')setHidMonitor_('ready','Barcode HID berhasil dikenali');
  if(mode==='kasir'){
@@ -494,7 +494,7 @@ function sendCode(raw,source='manual'){
   const requestId='scan_'+(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now()+'_'+Math.random().toString(36).slice(2));
   barcodePendingRequestId=requestId;
   setStatus('Barcode '+code+' terbaca · mengirim ke Menu Kasir…');
-  const sent=post('APOTEK_SCANNER_RESULT',{barcode:code,requestId,source});
+  const sent=post('APOTEK_SCANNER_RESULT',{barcode:code,requestId,source,detectedAt,cameraToDecodeMs});
   if(!sent){barcodePendingRequestId='';setStatus('Gagal mengirim barcode ke aplikasi utama. Tutup scanner dan buka kembali dari Menu Kasir.',true);return;}
   if(barcodePendingTimer)clearInterval(barcodePendingTimer);
   let waited=0;
@@ -510,7 +510,7 @@ function sendCode(raw,source='manual'){
  }
  try{const C=window.AudioContext||window.webkitAudioContext;if(C){const c=new C(),o=c.createOscillator(),g=c.createGain();o.frequency.value=1450;g.gain.value=.08;o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.1);o.onended=()=>c.close()}}catch(e){}
 }
-async function stopCamera(){stopMultiAngleEngine_();if(qr){try{if(qr.isScanning)await qr.stop()}catch(e){}try{qr.clear()}catch(e){}qr=null}const reader=document.getElementById('reader');if(reader)reader.innerHTML='';setCameraActiveLabel_('Kamera tidak aktif');setCameraToggleUI_('off')}
+async function stopCamera(){cameraStartedAt=0;stopMultiAngleEngine_();if(qr){try{if(qr.isScanning)await qr.stop()}catch(e){}try{qr.clear()}catch(e){}qr=null}const reader=document.getElementById('reader');if(reader)reader.innerHTML='';setCameraActiveLabel_('Kamera tidak aktif');setCameraToggleUI_('off')}
 function isMobileScannerDevice(){
  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'');
 }
@@ -743,6 +743,7 @@ async function startCamera(){
    cameraIndex=Math.min(cameraIndex,cameras.length-1);
    await qr.start(cameras[cameraIndex].id,scanConfig,onDecoded,()=>{});
   }
+  cameraStartedAt=Date.now();
   await applyCameraEnhancements_();
   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
   initScannerControlOverlay_();
