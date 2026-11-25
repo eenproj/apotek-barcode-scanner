@@ -226,21 +226,8 @@ body.product-mode #status,body.product-mode .scanner-camera-column>.row:first-of
 </style>
 
 <style>
-#unifiedCashierCard{display:none;margin:16px 0 4px;background:linear-gradient(145deg,#101d31,#142b40);color:#eaf5ff;border:1px solid rgba(92,190,220,.28);border-radius:18px;padding:16px;box-shadow:0 12px 34px rgba(0,0,0,.18)}
-#unifiedCashierCard *{box-sizing:border-box}#unifiedCashierCard .uc-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
-#unifiedCashierCard h2,#unifiedCashierCard h3{margin:0;color:inherit}#unifiedCashierCard .uc-sub{font-size:12px;color:#a9c3d5;margin-top:4px}
-#unifiedCashierCard .uc-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-#unifiedCashierCard label{display:block;font-size:12px;color:#b9d0df}#unifiedCashierCard input,#unifiedCashierCard select{width:100%;min-height:40px;margin-top:5px;border:1px solid #34556d;border-radius:10px;background:#0b1929;color:#f5fbff;padding:9px;font:inherit}
-#unifiedCashierCard .uc-panel{background:rgba(4,15,27,.48);border:1px solid rgba(145,190,215,.18);border-radius:13px;padding:12px;margin-top:12px}
-#unifiedCashierCard .uc-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(145,190,215,.13);font-size:13px}
-#unifiedCashierCard .uc-row:last-child{border-bottom:0}#unifiedCashierCard .uc-muted{font-size:11px;color:#9db6c8}
-#unifiedCashierCard .uc-btn{border:0;border-radius:10px;padding:11px 14px;font-weight:700;cursor:pointer;background:#17a7a0;color:white}
-#unifiedCashierCard .uc-btn.secondary{background:#29445a;color:#eaf5ff}#unifiedCashierCard .uc-btn:disabled{opacity:.55;cursor:wait}
-#unifiedCashierCard .uc-total{font-size:22px;font-weight:800;color:#65e6c1;font-variant-numeric:tabular-nums}
-#unifiedCashierCard .uc-status{font-size:12px;margin-top:10px;min-height:18px;color:#9debd7}
-#unifiedCashierCard .uc-remove{background:transparent;color:#ffb2b2;border:0;font-size:18px;padding:3px 8px}
 .uc-expired-overlay{position:fixed;inset:0;z-index:20000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(3,12,24,.72);backdrop-filter:blur(5px)}.uc-expired-dialog{width:min(560px,100%);max-height:min(82vh,680px);overflow:auto;background:#10283a;color:#eef8ff;border:1px solid rgba(255,160,120,.45);border-radius:18px;padding:20px;box-shadow:0 24px 80px rgba(0,0,0,.5)}.uc-expired-dialog h3{margin:0 0 8px;color:#ffd0b8;font-size:18px}.uc-expired-dialog p{margin:0 0 14px;color:#bfd1df;font-size:13px;line-height:1.5}.uc-expired-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid rgba(180,210,230,.18)}.uc-expired-item strong{display:block}.uc-expired-item small{display:block;color:#a9c0d2;margin-top:4px;line-height:1.45}.uc-expired-remove{flex:0 0 auto;border:0;border-radius:9px;padding:9px 11px;background:#b93838;color:white;font-weight:750;cursor:pointer}.uc-expired-foot{display:flex;justify-content:flex-end;margin-top:14px}.uc-expired-close{border:1px solid #587287;background:#203f55;color:#eef8ff;border-radius:9px;padding:9px 14px;font-weight:700}
-@media(max-width:520px){#unifiedCashierCard{padding:13px;margin-top:12px}#unifiedCashierCard .uc-grid{grid-template-columns:1fr 1fr}#unifiedCashierCard .uc-total{font-size:20px}}
+
 </style>
 </head>
 <body>
@@ -261,28 +248,6 @@ body.product-mode #status,body.product-mode .scanner-camera-column>.row:first-of
   </div></div>
  </div>
 
-<section id="unifiedCashierCard" aria-label="Kasir terpadu">
- <div class="uc-head"><div><h2>APOTEK · SMART POS</h2><div class="uc-sub">Unified Cashier Interface · transaksi langsung dari scanner</div></div><strong id="ucItemCount">0 item</strong></div>
- <div class="uc-grid">
-  <label>Pelanggan<input id="ucCustomer" value="Umum" autocomplete="off"></label>
-  <label>Jenis Transaksi<select id="ucTransactionType"><option value="Tanpa Resep">Tanpa Resep</option><option value="Resep">Resep</option></select></label>
-  <label id="ucPrescriptionWrap" style="display:none">Nomor Resep<input id="ucPrescription" autocomplete="off" placeholder="Nomor resep"></label>
-  <label>Diskon (%)<input id="ucDiscount" type="number" min="0" max="100" step="0.01" value="0"></label>
-  <label>Pajak (%)<input id="ucTax" type="number" min="0" max="100" step="0.01" value="0"></label>
-  <label>Metode Pembayaran<select id="ucPayment"><option>Cash</option><option>Transfer</option><option>Qris</option></select></label>
-  <label id="ucCashWrap">Uang Diterima<input id="ucCashReceived" type="number" min="0" step="1" inputmode="numeric" placeholder="Nominal pembayaran"></label>
- </div>
- <div class="uc-panel"><div class="uc-head"><h3>Keranjang</h3><span class="uc-muted">FEFO & stok divalidasi server saat posting</span></div><div id="ucCartWarnings" class="uc-cart-warning" role="status" aria-live="polite"></div><div id="ucCartRows"><div class="uc-muted">Belum ada produk. Pindai barcode untuk menambahkan.</div></div>
-  <div class="uc-row"><span>Subtotal</span><strong id="ucGross">Rp 0</strong></div>
-  <div class="uc-row"><span>Diskon</span><strong id="ucDiscountValue">Rp 0</strong></div>
-  <div class="uc-row"><span>Pajak</span><strong id="ucTaxValue">Rp 0</strong></div>
-  <div class="uc-row"><strong>Total Pembayaran</strong><strong class="uc-total" id="ucGrandTotal">Rp 0</strong></div>
-  <div class="uc-row"><span>Kembalian</span><strong id="ucChange">Rp 0</strong></div>
- </div>
- <div class="uc-grid" style="margin-top:12px"><button type="button" class="uc-btn secondary" id="ucClearCart">Kosongkan Keranjang</button><button type="button" class="uc-btn" id="ucCheckout">POSTING PENJUALAN</button></div>
- <div id="ucStatus" class="uc-status" role="status" aria-live="polite">Scanner siap menerima barcode.</div>
- <div id="ucReceipt" class="uc-panel" hidden></div>
-</section>
 
  <div id="scannerInfoDialog" class="scanner-info-dialog" role="dialog" aria-modal="true" aria-labelledby="scannerInfoTitle" aria-hidden="true">
   <div class="scanner-info-panel">
@@ -478,203 +443,7 @@ function submitToServerBridge_(mode,requestId,payload){
 function ucStatusSafeRecovery_(message){try{if(typeof ucStatus==='function')ucStatus(message,false);}catch(_){}}
 
 
-const UC={cart:[],busy:false,lastPosted:null,pendingCheckout:null,
- apiQueues:{lookup:Promise.resolve(),checkout:Promise.resolve(),config:Promise.resolve()},
- apiQueueDepth:{lookup:0,checkout:0,config:0}};
-try{const pending=JSON.parse(sessionStorage.getItem('apotek_unified_cashier_pending')||'null');if(pending&&pending.sale&&pending.requestId){UC.pendingCheckout=pending;UC.cart=Array.isArray(pending.cart)?pending.cart:[];}}catch(e){}
-function ucMoney(v){return 'Rp '+Math.round(Number(v)||0).toLocaleString('id-ID')}
-function ucTotals(){
- const gross=UC.cart.reduce((a,x)=>a+(Number(x.Qty)||0)*(Number(x.HargaJual)||0),0);
- const discPct=Math.max(0,Math.min(100,Number(document.getElementById('ucDiscount')?.value)||0));
- const taxPct=Math.max(0,Math.min(100,Number(document.getElementById('ucTax')?.value)||0));
- const discount=gross*discPct/100,tax=(gross-discount)*taxPct/100,total=gross-discount+tax;
- const cash=Number(document.getElementById('ucCashReceived')?.value)||0;
- return {gross,discount,tax,total,cash,change:Math.max(0,cash-total),discPct,taxPct};
-}
-function ucRender(){
- const host=document.getElementById('ucCartRows');if(!host)return;
- const warningHost=document.getElementById('ucCartWarnings');
- const warnings=UC.cart.filter(x=>Number(x.StokKedaluwarsa||0)>0||Number(x.Qty||0)>Number(x.StokLayak??x.Stok??0));
- if(warningHost){warningHost.style.display=warnings.length?'block':'none';warningHost.innerHTML=warnings.length?'<strong>⚠ Pemeriksaan masa kedaluwarsa / ketersediaan stok</strong>'+warnings.map(x=>{const short=Number(x.Qty||0)>Number(x.StokLayak??x.Stok??0);return '<div>• '+ucEsc(x.NamaProduk)+': '+(short?'Qty keranjang '+Number(x.Qty||0)+' melebihi stok layak '+Number(x.StokLayak??x.Stok??0)+'. ':'')+(Number(x.StokKedaluwarsa||0)>0?'Terdapat '+Number(x.StokKedaluwarsa||0)+' stok dari batch kedaluwarsa. Batch tersebut tidak dapat dijual.':'')+'</div>'}).join(''):'';}
- document.getElementById('ucItemCount').textContent=UC.cart.reduce((a,x)=>a+Number(x.Qty||0),0)+' item';
- if(!UC.cart.length)host.innerHTML='<div class="uc-muted">Belum ada produk. Pindai barcode untuk menambahkan.</div>';
- else host.innerHTML=UC.cart.map((x,i)=>'<div class="uc-row"><div style="min-width:0;flex:1"><strong>'+ucEsc(x.NamaProduk)+'</strong><div class="uc-muted">'+ucEsc(x.KodeProduk||x.Barcode||'')+' · '+ucMoney(x.HargaJual)+' / '+ucEsc(x.Satuan||'unit')+'</div><div style="display:flex;align-items:center;gap:6px;margin-top:6px"><button class="uc-btn secondary" data-uc-qty="'+i+'" data-delta="-1" type="button">−</button><strong>'+x.Qty+'</strong><button class="uc-btn secondary" data-uc-qty="'+i+'" data-delta="1" type="button">+</button></div></div><strong>'+ucMoney(x.Qty*x.HargaJual)+'</strong><button class="uc-remove" data-uc-remove="'+i+'" type="button" aria-label="Hapus produk">×</button></div>').join('');
- const t=ucTotals();document.getElementById('ucGross').textContent=ucMoney(t.gross);document.getElementById('ucDiscountValue').textContent=ucMoney(t.discount);document.getElementById('ucTaxValue').textContent=ucMoney(t.tax);document.getElementById('ucGrandTotal').textContent=ucMoney(t.total);document.getElementById('ucChange').textContent=ucMoney(t.change);
-}
-function ucEsc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-
-function ucBuildReceiptHtml_(sale,sourceSale){
- const s=sale&&typeof sale==='object'?sale:{},original=sourceSale||{},prefs=cashierReceiptPrefs||{},profile=cashierPharmacyProfile||{};
- const items=(Array.isArray(s.items)?s.items:[]).map(x=>{
-  const qty=Number(x.qty??x.Qty??0)||0,price=Number(x.harga??x.HargaJual??0)||0;
-  return {name:String(x.nama||x.NamaProduk||x.ProdukID||'Produk'),qty,price,subtotal:Number(x.subtotal??x.Subtotal??qty*price)||0,batch:String(x.batch||x.NoBatch||''),expired:String(x.expired||x.Expired||''),location:String(x.lokasi||x.LokasiDetail||'')};
- });
- const gross=Number(s.gross??s.subtotal??items.reduce((n,x)=>n+x.subtotal,0))||0;
- const discount=Number(s.discount??0)||0,tax=Number(s.tax??0)||0,total=Number(s.total??(gross-discount+tax))||0;
- const method=String(s.metodePembayaran||original.metodePembayaran||'Cash');
- const received=s.uangDiterima??original.uangDiterima??null;
- const change=s.kembalian??original.kembalian??(received==null?null:Number(received)-total);
- const date=String(s.tanggal||original.tanggal||new Date().toLocaleString('id-ID'));
- const customer=String(s.customer||s.Customer||original.customer||'Umum');
- const width=Number(prefs.receiptWidth)===58?58:80;
- const font=Math.min(13,Math.max(9,Number(prefs.fontSize)||11));
- const pharmacy=String(profile.namaApotek||profile.nama||'Apotek');
- const address=[profile.alamat,profile.kelurahan,profile.kecamatan,profile.kabupaten,profile.provinsi].filter(Boolean).join(', ');
- const show=k=>prefs[k]!==false;
- const line=(label,value)=>'<div class="uc-r-line"><span>'+label+'</span><strong>'+value+'</strong></div>';
- const meta=(show('showReceiptNo')?'<div>No. Struk: '+ucEsc(s.noStruk||original.noStruk||'-')+'</div>':'')+
-  '<div>Tanggal: '+ucEsc(date)+'</div><div>Pelanggan: '+ucEsc(customer)+'</div>'+
-  (show('showPayment')?'<div>Pembayaran: '+ucEsc(method)+'</div>':'')+
-  (show('showTransactionType')?'<div>Jenis Transaksi: '+ucEsc(s.jenisTransaksi||original.jenisTransaksi||'Tanpa Resep')+'</div>':'');
- const itemHtml=items.map(x=>'<div class="uc-r-item"><div><strong>'+ucEsc(x.name)+'</strong></div><div class="uc-r-line"><span>'+x.qty+' x '+ucMoney(x.price)+'</span><strong>'+ucMoney(x.subtotal)+'</strong></div>'+(x.batch?'<div class="uc-r-muted">Batch: '+ucEsc(x.batch)+(x.expired?' · Exp: '+ucEsc(x.expired):'')+'</div>':'')+(x.location?'<div class="uc-r-muted">Lokasi: '+ucEsc(x.location)+'</div>':'')+'</div>').join('');
- const totals=(show('showSubtotal')?line('SUBTOTAL',ucMoney(gross)):'')+
-  (show('showDiscount')?line('DISKON','- '+ucMoney(discount)):'')+
-  (show('showTax')?line('PAJAK',ucMoney(tax)):'');
- const cash=show('showCashInfo')&&method.toLowerCase()==='cash'&&received!=null?'<hr class="uc-r-rule">'+line('Uang Diterima',ucMoney(received))+line('Kembalian',ucMoney(change||0)):'';
- const footer=show('showThankYou')&&String(prefs.footerText||'').trim()?'<div class="uc-r-footer">'+ucEsc(String(prefs.footerText).trim())+'</div>':'';
- return '<div class="uc-receipt-toolbar"><strong>✓ Transaksi berhasil · Preview Struk</strong><span class="uc-muted">No. Struk: '+ucEsc(s.noStruk||original.noStruk||'-')+'</span></div>'+
-  '<div class="uc-receipt-paper" id="ucReceiptPaper" style="--uc-receipt-width:'+width+'mm;--uc-receipt-font:'+font+'px;width:min(100%,'+(width===58?'280px':'380px')+');font-size:'+font+'px"><div class="uc-r-center" style="text-align:'+(prefs.headerAlign==='left'?'left':'center')+'"><div class="uc-r-title">'+ucEsc(pharmacy)+'</div>'+(show('showAddress')&&address?'<div class="uc-r-muted">'+ucEsc(address)+'</div>':'')+'<div class="uc-r-muted">BUKTI TRANSAKSI PENJUALAN</div></div><hr class="uc-r-rule">'+
-  meta+'<hr class="uc-r-rule">'+itemHtml+'<hr class="uc-r-rule">'+totals+line('TOTAL','<span class="uc-r-total">'+ucMoney(total)+'</span>')+cash+'<hr class="uc-r-rule">'+footer+'</div>'+
-  '<div class="uc-receipt-actions"><button type="button" class="uc-btn" id="ucPrintReceipt">🖨 Cetak Struk</button><button type="button" class="uc-btn secondary" id="ucHideReceipt">Tutup Preview</button></div>';
-}
-function ucShowReceiptPreview_(sale,originalSale){
- const host=document.getElementById('ucReceipt');if(!host)return;
- host.innerHTML=ucBuildReceiptHtml_(sale,originalSale);
- host.hidden=false;host.classList.add('uc-receipt-preview');
- host.scrollIntoView({behavior:'smooth',block:'nearest'});
- document.getElementById('ucPrintReceipt')?.addEventListener('click',()=>{
-  document.body.classList.add('uc-print-receipt');
-  const cleanup=()=>document.body.classList.remove('uc-print-receipt');
-  window.addEventListener('afterprint',cleanup,{once:true});
-  try{window.print()}catch(e){cleanup();ucStatus('Dialog cetak gagal dibuka: '+(e.message||e),true)}
-  setTimeout(cleanup,1500);
- });
- document.getElementById('ucHideReceipt')?.addEventListener('click',()=>{host.hidden=true;host.classList.remove('uc-receipt-preview')});
-}
-function ucStatus(msg,error=false){const el=document.getElementById('ucStatus');if(el){el.textContent=msg;el.style.color=error?'#ffaaa8':'#9debd7'}}
-let UC_EXPIRED_ISSUES=[];
-let UC_STOCK_ISSUES_=[];
-function ucParseIssuePayload_(error,marker){const message=String(error?.message||error||''),at=message.indexOf(marker);if(at<0)return null;try{const parsed=JSON.parse(message.slice(at+marker.length));return Array.isArray(parsed)?parsed.filter(x=>x&&x.ProdukID!=null):null}catch(e){console.warn('[UC_CART_RECOVERY] Payload tidak valid',e);return null}}
-function ucRenderCartRecovery_(){
- const expired=UC_EXPIRED_ISSUES_.length>0,issues=expired?UC_EXPIRED_ISSUES_:UC_STOCK_ISSUES_;
- let overlay=document.getElementById('ucExpiredCartOverlay');
- if(!issues.length){overlay?.remove();return}
- const rows=issues.map(issue=>{
-  const item=UC.cart.find(x=>String(x.ProdukID)===String(issue.ProdukID));if(!item)return '';
-  const available=expired?Number(issue.QtyLayak||0):Number(issue.QtyTersedia||0);
-  const batchText=Array.isArray(issue.Batches)?issue.Batches.map(b=>[b.NoBatch||b.noBatch||'',b.Expired||b.expired||''].filter(Boolean).join(' · ')+(Number(b.Qty)>0?' · Qty '+Number(b.Qty):'')).join(', '):'';
-  const detail=expired?['Diminta: '+Number(issue.QtyDiminta||item.Qty),'Stok layak: '+available,'Stok kedaluwarsa: '+Number(issue.QtyKedaluwarsa||0),batchText?'Batch: '+batchText:''].filter(Boolean).join(' | '):['Diminta: '+Number(issue.QtyDiminta||item.Qty),'Stok tersedia: '+available,'Kekurangan: '+Number(issue.QtyKurang||Math.max(0,Number(item.Qty)-available))].join(' | ');
-  const canAdjust=available>0;
-  return '<div class="uc-expired-item"><div style="min-width:0;flex:1"><strong>'+ucEsc(item.NamaProduk||issue.NamaProduk||issue.ProdukID)+'</strong><small>'+ucEsc(detail)+'</small>'+(canAdjust?'<div class="uc-stock-qty"><label style="font-size:11px">Qty baru <input type="number" min="1" max="'+available+'" step="1" value="'+Math.min(Number(item.Qty||1),available)+'" data-uc-recovery-qty="'+ucEsc(issue.ProdukID)+'"></label></div>':'')+'</div><div style="display:flex;flex-direction:column;gap:7px;align-items:flex-end">'+(canAdjust?'<button type="button" class="uc-stock-adjust" data-uc-stock-adjust="'+ucEsc(issue.ProdukID)+'">Sesuaikan Qty</button>':'')+'<button type="button" class="uc-stock-remove" data-uc-stock-remove="'+ucEsc(issue.ProdukID)+'">Hapus</button></div></div>';
- }).filter(Boolean).join('');
- if(!rows){overlay?.remove();UC_EXPIRED_ISSUES_=[];UC_STOCK_ISSUES_=[];ucStatus('Item bermasalah tidak lagi ditemukan dalam keranjang.',true);return}
- if(!overlay){overlay=document.createElement('div');overlay.id='ucExpiredCartOverlay';overlay.className='uc-expired-overlay';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');document.body.appendChild(overlay)}
- overlay.innerHTML='<div class="uc-expired-dialog '+(expired?'':'uc-stock-dialog')+'"><h3>'+(expired?'Produk Kedaluwarsa — Perlu Tindakan':'Stok Tidak Mencukupi — Perlu Penyesuaian')+'</h3><p>'+(expired?'Posting dibatalkan karena stok layak jual tidak mencukupi dan terdapat batch kedaluwarsa. Anda dapat menyesuaikan kuantitas ke stok layak atau menghapus produk.':'Posting dibatalkan karena kuantitas keranjang melebihi stok tersedia. Sesuaikan kuantitas sesuai stok atau hapus produk dari keranjang.')+' Perubahan hanya berlaku pada keranjang; Master Produk, stok, dan batch tidak diubah.</p>'+rows+'<div class="uc-stock-actions"><button type="button" class="uc-expired-close" data-uc-recovery-close>Tutup</button></div></div>';
-}
-function ucHandleCartValidationError_(error){
- const expired=ucParseIssuePayload_(error,'EXPIRED_CART_ITEMS::');
- const stock=expired?null:ucParseIssuePayload_(error,'INSUFFICIENT_STOCK_ITEMS::');
- if(!expired&&!stock)return false;
- // Kedua respons ini adalah penolakan bisnis eksplisit dari server sebelum transaksi diposting.
- UC.pendingCheckout=null;try{sessionStorage.removeItem('apotek_unified_cashier_pending')}catch(e){}
- UC_EXPIRED_ISSUES_=expired||[];UC_STOCK_ISSUES_=stock||[];ucRenderCartRecovery_();
- ucStatus(expired?'Transaksi belum diposting. Sesuaikan kuantitas atau hapus produk yang terdampak batch kedaluwarsa.':'Transaksi belum diposting. Sesuaikan kuantitas dengan stok tersedia atau hapus produk.',true);return true;
-}
-function ucResolveCartIssue_(productId,action){
- const id=String(productId||''),issueList=UC_EXPIRED_ISSUES_.length?UC_EXPIRED_ISSUES_:UC_STOCK_ISSUES_;
- const issue=issueList.find(x=>String(x.ProdukID)===id),item=UC.cart.find(x=>String(x.ProdukID)===id);if(!issue||!item)return;
- if(action==='remove')UC.cart=UC.cart.filter(x=>String(x.ProdukID)!==id);
- else{
-  const input=Array.from(document.querySelectorAll('[data-uc-recovery-qty]')).find(el=>String(el.getAttribute('data-uc-recovery-qty'))===id);
-  const qty=Number(input?.value),max=UC_EXPIRED_ISSUES_.length?Number(issue.QtyLayak||0):Number(issue.QtyTersedia||0);
-  if(!Number.isInteger(qty)||qty<1||qty>max){ucStatus('Kuantitas harus 1 sampai '+max+'.',true);return}
-  item.Qty=qty;
- }
- UC_EXPIRED_ISSUES_=UC_EXPIRED_ISSUES_.filter(x=>String(x.ProdukID)!==id);UC_STOCK_ISSUES_=UC_STOCK_ISSUES_.filter(x=>String(x.ProdukID)!==id);
- ucRender();ucRenderCartRecovery_();ucStatus(action==='remove'?'Produk dihapus dari keranjang. Total pembayaran diperbarui.':'Kuantitas diperbarui sesuai stok tersedia. Total pembayaran diperbarui.');
-}
-document.addEventListener('click',function(e){
- const adjust=e.target?.closest?.('[data-uc-stock-adjust]'),remove=e.target?.closest?.('[data-uc-stock-remove]');
- if(adjust){ucResolveCartIssue_(adjust.getAttribute('data-uc-stock-adjust'),'adjust');return}
- if(remove){ucResolveCartIssue_(remove.getAttribute('data-uc-stock-remove'),'remove');return}
- if(e.target?.closest?.('[data-uc-recovery-close]'))document.getElementById('ucExpiredCartOverlay')?.remove();
-});
-function ucRequestId(){return (window.crypto&&window.crypto.randomUUID)?window.crypto.randomUUID():'uc-'+Date.now()+'-'+Math.random().toString(36).slice(2)}
-function ucApi(action,payload){
- // Pisahkan konfigurasi, lookup produk, dan checkout agar request config
- // atau transaksi yang lambat tidak menahan pencarian barcode di kasir.
- // Lookup tetap berurutan untuk menjaga urutan pemindaian dan penambahan keranjang.
- const lane=action==='lookup'?'lookup':action==='checkout'?'checkout':'config';
- const requestId=ucRequestId(),body=Object.assign({action},payload||{});
- const run=()=>{
-  UC.apiQueueDepth[lane]++;
-  console.info('[UC_API_QUEUE] START',{action,requestId,lane,queueDepth:UC.apiQueueDepth[lane]});
-  return submitToServerBridge_('kasir_api',requestId,body).finally(()=>{
-   UC.apiQueueDepth[lane]=Math.max(0,UC.apiQueueDepth[lane]-1);
-   console.info('[UC_API_QUEUE] END',{action,requestId,lane,queueDepth:UC.apiQueueDepth[lane]});
-  });
- };
- const task=UC.apiQueues[lane].then(run,run);
- UC.apiQueues[lane]=task.catch(()=>{});
- return task;
-}
-async function ucAddBarcode(code){
- if(UC.pendingCheckout)throw new Error('Ada transaksi yang belum menerima konfirmasi. Gunakan POSTING PENJUALAN kembali untuk memeriksa transaksi yang sama.');
- const normCode=norm(code);if(!normCode)return;
- ucStatus('Mencari produk '+normCode+' pada database…');
- try{
-  const r=await ucApi('lookup',{barcode:normCode});const p=r.product;
-  if(!p)throw new Error('Produk tidak ditemukan.');
-  if(Number(p.Stok||0)<=0)throw new Error('Stok produk habis.');
-  if(String(p.JenisObat||'').toLowerCase()==='keras'){
-   document.getElementById('ucTransactionType').value='Resep';document.getElementById('ucPrescriptionWrap').style.display='';
-   if(!String(document.getElementById('ucPrescription').value||'').trim())throw new Error('Produk '+p.NamaProduk+' merupakan obat keras. Isi nomor resep sebelum menambahkannya ke keranjang.');
-  }
-  const old=UC.cart.find(x=>String(x.ProdukID)===String(p.ID));const next=Number(old?.Qty||0)+1;
-  if(next>Number(p.Stok||0))throw new Error('Stok tidak mencukupi. Stok tersedia: '+p.Stok);
-  if(old){old.Qty=next;old.Stok=Number(p.Stok||0);old.StokLayak=Number(p.StokLayak??p.Stok??0);old.StokKedaluwarsa=Number(p.StokKedaluwarsa||0);old.ExpiredBatches=Array.isArray(p.ExpiredBatches)?p.ExpiredBatches:[];}else UC.cart.push({ProdukID:p.ID,KodeProduk:p.KodeProduk,NamaProduk:p.NamaProduk,Barcode:p.Barcode,Qty:1,HargaJual:Number(p.HargaJual||0),Satuan:p.Satuan||'',Stok:Number(p.Stok||0),StokLayak:Number(p.StokLayak??p.Stok??0),StokKedaluwarsa:Number(p.StokKedaluwarsa||0),ExpiredBatches:Array.isArray(p.ExpiredBatches)?p.ExpiredBatches:[],JenisObat:p.JenisObat||'Bebas'});
-  ucRender();ucStatus(Number(p.StokKedaluwarsa||0)>0?'⚠ '+p.NamaProduk+' ditambahkan. Ada stok batch kedaluwarsa yang tidak dapat dijual; periksa peringatan pada keranjang.':'✓ '+p.NamaProduk+' ditambahkan. Keranjang tersinkron pada popup ini.');return p;
- }catch(e){ucStatus(e.message||String(e),true);throw e}
-}
-async function ucCheckout(){
- if(UC.busy)return;if(!UC.cart.length){ucStatus('Keranjang masih kosong.',true);return}
- const t=ucTotals(),method=document.getElementById('ucPayment').value,kind=document.getElementById('ucTransactionType').value,rx=String(document.getElementById('ucPrescription').value||'').trim();
- if(!UC.pendingCheckout&&kind==='Resep'&&!rx){ucStatus('Nomor resep wajib diisi.',true);return}
- if(!UC.pendingCheckout&&method==='Cash'&&t.cash<t.total){ucStatus('Uang diterima belum mencukupi total pembayaran.',true);return}
- const btn=document.getElementById('ucCheckout');UC.busy=true;btn.disabled=true;btn.textContent='MEMPROSES…';
- let requestId,sale;
- if(UC.pendingCheckout){requestId=UC.pendingCheckout.requestId;sale=UC.pendingCheckout.sale;}
- else{
-  requestId=ucRequestId();const now=new Date(),localDate=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-  const noStruk='PJ-MOB-'+now.getTime()+'-'+requestId.slice(-6);
-  sale={tanggal:localDate,noStruk,customer:String(document.getElementById('ucCustomer').value||'Umum'),discountPercent:t.discPct,taxPercent:t.taxPct,metodePembayaran:method,jenisTransaksi:kind,noResep:kind==='Resep'?rx:'',idempotencyKey:'MOBILE-CASHIER:'+requestId,items:UC.cart.map(x=>({ProdukID:x.ProdukID,Qty:Number(x.Qty),HargaJual:Number(x.HargaJual)}))};
-  UC.pendingCheckout={requestId,sale,cart:UC.cart};try{sessionStorage.setItem('apotek_unified_cashier_pending',JSON.stringify(UC.pendingCheckout))}catch(e){}
- }
- try{
-  const result=await submitToServerBridge_('kasir_api',requestId,{action:'checkout',sale});
-  const receiptSource={...sale,uangDiterima:method==='Cash'?t.cash:null,kembalian:method==='Cash'?t.change:null};
-  UC.lastPosted=result.sale;UC.pendingCheckout=null;try{sessionStorage.removeItem('apotek_unified_cashier_pending')}catch(e){}
-  ucShowReceiptPreview_(result.sale,receiptSource);
-  UC.cart=[];ucRender();ucStatus('Transaksi tersimpan.');
-  try{const target=embedded?window.parent:window.opener;target?.postMessage({type:'APOTEK_UNIFIED_CASHIER_SALE_POSTED',nonce,requestId,sale:result.sale},parentOrigin)}catch(e){}
- }catch(e){if(!ucHandleCartValidationError_(e)){ucStatus('Konfirmasi belum diterima: '+(e.message||e)+'. Keranjang dan ID transaksi dipertahankan. Tekan POSTING PENJUALAN kembali untuk memeriksa status transaksi yang sama.',true)}}
- finally{UC.busy=false;btn.disabled=false;btn.textContent='POSTING PENJUALAN'}
-}
-function ucBind(){
- document.getElementById('ucCartRows')?.addEventListener('click',e=>{
-  const q=e.target.closest('[data-uc-qty]'),r=e.target.closest('[data-uc-remove]');
-  if(UC.pendingCheckout){ucStatus('Periksa kembali status posting transaksi sebelum mengubah keranjang.',true);return}
-  if(q){const i=Number(q.dataset.ucQty),delta=Number(q.dataset.delta);if(UC.cart[i]){UC.cart[i].Qty=Math.max(0,UC.cart[i].Qty+delta);if(!UC.cart[i].Qty)UC.cart.splice(i,1);ucRender()}}
-  if(r){UC.cart.splice(Number(r.dataset.ucRemove),1);ucRender()}
- });
- ['ucDiscount','ucTax','ucCashReceived'].forEach(id=>document.getElementById(id)?.addEventListener('input',ucRender));
- document.getElementById('ucTransactionType')?.addEventListener('change',e=>{document.getElementById('ucPrescriptionWrap').style.display=e.target.value==='Resep'?'':'none'});
- document.getElementById('ucPayment')?.addEventListener('change',e=>{document.getElementById('ucCashWrap').style.display=e.target.value==='Cash'?'':'none';ucRender()});
- document.getElementById('ucClearCart')?.addEventListener('click',()=>{if(UC.pendingCheckout){ucStatus('Transaksi masih menunggu konfirmasi server.',true);return}if(confirm('Kosongkan seluruh keranjang?')){UC.cart=[];UC_EXPIRED_ISSUES_=[];UC_STOCK_ISSUES_=[];document.getElementById('ucExpiredCartOverlay')?.remove();ucRender();ucStatus('Keranjang dikosongkan.')}});
- document.getElementById('ucCheckout')?.addEventListener('click',ucCheckout);
-}
-ucBind();
-
+// Mode Kasir tidak menjalankan lookup/keranjang di halaman scanner.
 function norm(v){return String(v||'').trim().replace(/\s+/g,'').toUpperCase()}
 function sendCode(raw,source='manual'){
  const code=norm(raw);if(!code)return;
@@ -682,7 +451,18 @@ function sendCode(raw,source='manual'){
  if(!parentReady){setStatus('Belum terhubung dengan aplikasi utama. Tutup scanner lalu buka kembali dari tombol Scan Kamera.',true);return}
  if(source==='hid')setHidMonitor_('ready','Barcode HID berhasil dikenali');
  if(mode==='kasir'){
-  ucAddBarcode(code).then(()=>setStatus('✓ Produk masuk ke Keranjang Kasir pada popup.')).catch(err=>setStatus(err.message||String(err),true));
+  if(barcodePendingRequestId){setStatus('Barcode sebelumnya masih diproses Menu Kasir. Tunggu konfirmasi sebelum memindai berikutnya.',true);return;}
+  const requestId='scan_'+(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now()+'_'+Math.random().toString(36).slice(2));
+  barcodePendingRequestId=requestId;
+  setStatus('Barcode '+code+' terbaca. Mengirim ke Menu Kasir untuk pencarian database…');
+  const sent=post('APOTEK_SCANNER_RESULT',{barcode:code,requestId,source});
+  if(!sent){barcodePendingRequestId='';setStatus('Gagal mengirim barcode ke aplikasi utama. Tutup scanner dan buka kembali dari Menu Kasir.',true);return;}
+  if(barcodePendingTimer)clearInterval(barcodePendingTimer);
+  let waited=0;
+  barcodePendingTimer=setInterval(()=>{
+   waited+=1000;
+   if(waited>=30000&&barcodePendingRequestId===requestId){clearInterval(barcodePendingTimer);barcodePendingTimer=null;setStatus('Menu Kasir belum mengirim konfirmasi. Jangan pindai ulang dahulu; periksa status pada Menu Kasir.',true);}
+  },1000);
   return;
  }
  if(mode==='product'){
@@ -1076,20 +856,8 @@ window.addEventListener('message',async event=>{
   setStatus('Terhubung ke aplikasi. Siap memindai.');
   const entry=document.getElementById('productEntryCard');
   if(entry)entry.hidden=mode!=='product';
-  const cashier=document.getElementById('unifiedCashierCard');
-  if(cashier)cashier.style.display=mode==='kasir'?'block':'none';
-  if(mode==='kasir'){
-   ucRender();
-   ucApi('config',{}).then(function(cfg){
-    var conf=cfg&&cfg.config||{};
-    if(!UC.pendingCheckout){
-     var disc=document.getElementById('ucDiscount'),tax=document.getElementById('ucTax');
-     if(disc)disc.value=Number(conf.defaultDiscount)||0;
-     if(tax)tax.value=Number(conf.taxPercent)||0;
-     ucRender();
-    }
-   }).catch(function(err){console.warn('[Unified Cashier] Konfigurasi default tidak termuat:',err)});
-  }
+  // Scanner hanya bertugas membaca dan meneruskan barcode. Seluruh lookup
+  // database, validasi stok, dan penambahan keranjang dilakukan di Menu Kasir.
   if(mode==='product')applyProductOptions(d.productOptions||{});
   // Desktop: kamera otomatis aktif. Smartphone/tablet: kamera tetap nonaktif.
   const mobileDevice=isMobileScannerDevice()||((window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)&&Math.min(window.innerWidth,window.innerHeight)<=1200);
