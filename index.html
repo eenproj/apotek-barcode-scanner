@@ -430,37 +430,92 @@ function submitToServerBridge_(mode,requestId,payload){
    if(!pollStartedAt){pollStartedAt=Date.now();diag('RECOVERY_STARTED',{recoveryWindowMs:RECOVERY_WINDOW_MS});}
    if(Date.now()-pollStartedAt>RECOVERY_WINDOW_MS){console.error('[APOTEK_ACK_RECOVERY] WINDOW_EXPIRED',{requestId,pollCount,elapsedMs:Date.now()-pollStartedAt});finish(reject,new Error('Hasil request belum dapat dipulihkan setelah 10 menit. Operasi tidak dikirim ulang; periksa status request sebelum mencoba kembali.'));return;}
    pollInFlight=true;pollCount++;diag('RECOVERY_POLL_START',{pollCount});
-    const pollFrame=document.createElement('iframe');
-    pollFrame.title='APOTEK request status recovery';pollFrame.setAttribute('aria-hidden','true');
-    pollFrame.tabIndex=-1;pollFrame.referrerPolicy='no-referrer';
-    pollFrame.style.cssText='position:absolute;width:1px;height:1px;left:-10000px;border:0';
-    const statusNonce=(()=>{try{const b=new Uint8Array(18);crypto.getRandomValues(b);return Array.from(b,x=>x.toString(16).padStart(2,'0')).join('')}catch(_){return 'n'+Date.now().toString(36)+Math.random().toString(36).slice(2)}})();
-    let callbackDone=false,pollWatchdog=0;
-    const trustedStatusOrigin=origin=>{try{const u=new URL(origin),h=u.hostname.toLowerCase();return u.protocol==='https:'&&(h==='script.google.com'||h==='script.googleusercontent.com'||h.endsWith('.script.googleusercontent.com')||h.endsWith('-script.googleusercontent.com'))}catch(_){return false}};
-    const finishPoll=()=>{if(callbackDone)return;callbackDone=true;if(pollWatchdog)clearTimeout(pollWatchdog);pollInFlight=false;window.removeEventListener('message',onStatusMessage);pollFrame.remove();};
-    const onStatusMessage=event=>{
-     const msg=event.data;
-     if(!trustedStatusOrigin(event.origin)||!msg||msg.channel!=='APOTEK_BARCODE_STATUS_V1'||String(msg.requestId)!==String(requestId)||String(msg.statusNonce)!==statusNonce)return;
-     finishPoll();if(settled)return;
-     const data=msg.status||{};
-     diag('RECOVERY_STATUS',{pollCount,state:data&&data.state,requestIdMatch:data&&data.requestId===String(requestId),transport:'iframe-postmessage'});
-     console.info('[APOTEK_ACK_RECOVERY] STATUS',{requestId,state:data&&data.state,pollCount,elapsedMs:Date.now()-pollStartedAt,transport:'iframe-postmessage'});
-     if(data&&data.requestId===String(requestId)&&data.state==='COMPLETED'&&data.result&&data.result.requestId===String(requestId)){
-       const r=data.result;ackReceivedAt=(window.performance&&performance.now)?performance.now():0;
-       console.info('[APOTEK_ACK_RECOVERY] RESULT_RECOVERED',{requestId,pollCount,serverTrace:r._e2e||null,serverElapsedMs:r.serverElapsedMs??null,transport:'iframe-postmessage'});
-       if(r.ok)finish(resolve,r);else finish(reject,new Error(r.message||'Server menyelesaikan request dengan kesalahan.'));
-       return;
-     }
-     if(data&&data.state==='NOT_FOUND')console.warn('[APOTEK_ACK_RECOVERY] REGISTRY_MISS',{requestId,pollCount});
-     scheduleRecovery(Math.min(10000,RECOVERY_POLL_MS+Math.max(0,pollCount-1)*900));
-    };
-    window.addEventListener('message',onStatusMessage);
-    pollWatchdog=setTimeout(()=>{finishPoll();if(!settled){diag('RECOVERY_IFRAME_NO_MESSAGE',{pollCount});console.warn('[APOTEK_ACK_RECOVERY] POLL_NO_MESSAGE',{requestId,pollCount});scheduleRecovery(Math.min(12000,3000+pollCount*700));}},10000);
-    try{
-     const u=new URL(bridgeUrl);u.searchParams.set('bridgeStatus','1');u.searchParams.set('requestId',String(requestId));u.searchParams.set('recoveryKey',recoveryKey);u.searchParams.set('statusNonce',statusNonce);u.searchParams.set('_ts',String(Date.now()));
-     pollFrame.src=u.toString();document.body.appendChild(pollFrame);
-     diag('RECOVERY_IFRAME_REQUEST',{pollCount,transport:'iframe-postmessage'});
-    }catch(e){finishPoll();console.error('[APOTEK_ACK_RECOVERY] URL_ERROR',{requestId,error:String(e)});scheduleRecovery(RECOVERY_POLL_MS);}
+
+   const statusNonce=(()=>{try{const b=new Uint8Array(18);crypto.getRandomValues(b);return Array.from(b,x=>x.toString(16).padStart(2,'0')).join('')}catch(_){return 'n'+Date.now().toString(36)+Math.random().toString(36).slice(2)}})();
+   const callbackSuffix=(()=>{try{const b=new Uint8Array(12);crypto.getRandomValues(b);return Array.from(b,x=>x.toString(16).padStart(2,'0')).join('')}catch(_){return Array.from({length:24},()=>Math.floor(Math.random()*16).toString(16)).join('')}})();
+   const callbackName='__apotekBarcodeRecovery_'+callbackSuffix;
+   const statusScript=document.createElement('script');
+   statusScript.async=true;
+   statusScript.referrerPolicy='no-referrer';
+   statusScript.dataset.apotekRecovery='1';
+   let callbackDone=false,pollWatchdog=0,callbackInvoked=false;
+
+   const finishPoll=()=>{
+    if(callbackDone)return;
+    callbackDone=true;
+    if(pollWatchdog)clearTimeout(pollWatchdog);
+    pollInFlight=false;
+    try{delete window[callbackName]}catch(_){window[callbackName]=undefined}
+    statusScript.onload=null;statusScript.onerror=null;
+    if(statusScript.parentNode)statusScript.parentNode.removeChild(statusScript);
+   };
+
+   const scheduleNext=()=>{
+    scheduleRecovery(Math.min(10000,RECOVERY_POLL_MS+Math.max(0,pollCount-1)*900));
+   };
+
+   window[callbackName]=(msg)=>{
+    if(callbackDone||settled)return;
+    callbackInvoked=true;
+    const valid=!!msg&&msg.channel==='APOTEK_BARCODE_STATUS_V2'&&
+      String(msg.requestId)===String(requestId)&&
+      String(msg.statusNonce)===statusNonce&&
+      msg.status&&String(msg.status.requestId)===String(requestId);
+    if(!valid){
+     diag('RECOVERY_JSONP_INVALID',{pollCount,requestIdMatch:!!(msg&&String(msg.requestId)===String(requestId)),nonceMatch:!!(msg&&String(msg.statusNonce)===statusNonce)});
+     console.warn('[APOTEK_ACK_RECOVERY] JSONP_INVALID',{requestId,pollCount});
+     finishPoll();scheduleNext();return;
+    }
+
+    finishPoll();
+    if(settled)return;
+    const data=msg.status||{};
+    diag('RECOVERY_STATUS',{pollCount,state:data.state,requestIdMatch:data.requestId===String(requestId),transport:'contentservice-jsonp'});
+    console.info('[APOTEK_ACK_RECOVERY] STATUS',{requestId,state:data.state,pollCount,elapsedMs:Date.now()-pollStartedAt,transport:'contentservice-jsonp'});
+
+    if(data.state==='COMPLETED'&&data.result&&String(data.result.requestId)===String(requestId)){
+     const r=data.result;
+     ackReceivedAt=(window.performance&&performance.now)?performance.now():0;
+     console.info('[APOTEK_ACK_RECOVERY] RESULT_RECOVERED',{requestId,pollCount,serverTrace:r._e2e||null,serverElapsedMs:r.serverElapsedMs??null,transport:'contentservice-jsonp'});
+     if(r.ok)finish(resolve,r);else finish(reject,new Error(r.message||'Server menyelesaikan request dengan kesalahan.'));
+     return;
+    }
+    if(data.state==='NOT_FOUND')console.warn('[APOTEK_ACK_RECOVERY] REGISTRY_MISS',{requestId,pollCount});
+    else if(data.state==='PROCESSING')console.info('[APOTEK_ACK_RECOVERY] STILL_PROCESSING',{requestId,pollCount});
+    scheduleNext();
+   };
+
+   statusScript.onload=()=>{
+    if(!callbackInvoked&&!callbackDone){
+     finishPoll();
+     if(!settled){diag('RECOVERY_JSONP_NO_CALLBACK',{pollCount});console.warn('[APOTEK_ACK_RECOVERY] JSONP_NO_CALLBACK',{requestId,pollCount});scheduleNext();}
+    }
+   };
+   statusScript.onerror=()=>{
+    finishPoll();
+    if(!settled){diag('RECOVERY_JSONP_LOAD_ERROR',{pollCount});console.warn('[APOTEK_ACK_RECOVERY] JSONP_LOAD_ERROR',{requestId,pollCount});scheduleRecovery(Math.min(12000,3000+pollCount*700));}
+   };
+   pollWatchdog=setTimeout(()=>{
+    finishPoll();
+    if(!settled){diag('RECOVERY_JSONP_TIMEOUT',{pollCount});console.warn('[APOTEK_ACK_RECOVERY] JSONP_TIMEOUT',{requestId,pollCount});scheduleRecovery(Math.min(12000,3000+pollCount*700));}
+   },10000);
+
+   try{
+    const u=new URL(bridgeUrl);
+    u.searchParams.set('bridgeStatus','1');
+    u.searchParams.set('requestId',String(requestId));
+    u.searchParams.set('recoveryKey',recoveryKey);
+    u.searchParams.set('statusNonce',statusNonce);
+    u.searchParams.set('callback',callbackName);
+    u.searchParams.set('_ts',String(Date.now()));
+    statusScript.src=u.toString();
+    diag('RECOVERY_JSONP_REQUEST',{pollCount,transport:'contentservice-jsonp',callbackPrefix:'__apotekBarcodeRecovery_'});
+    (document.head||document.documentElement).appendChild(statusScript);
+   }catch(e){
+    finishPoll();
+    console.error('[APOTEK_ACK_RECOVERY] JSONP_URL_ERROR',{requestId,error:String(e)});
+    scheduleRecovery(RECOVERY_POLL_MS);
+   }
   }
   const timeout=setTimeout(()=>{
    if(mode==='kasir_api'&&formSubmitted){diag('ACK_PENDING_RECOVERY',{iframeLoadCount,formSubmitted,recoveryWindowMs:RECOVERY_WINDOW_MS});console.warn('[APOTEK_E2E] ACK_PENDING_RECOVERY',{mode,requestId,formSubmitted,iframeLoadCount,clientElapsedMs:elapsed(),recoveryWindowMs:RECOVERY_WINDOW_MS});ucStatusSafeRecovery_('Server masih memproses permintaan. Memeriksa status secara otomatis hingga 10 menit; lookup tidak dikirim ulang…');scheduleRecovery(0);return;}
