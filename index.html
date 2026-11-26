@@ -345,7 +345,12 @@ let bridgeUrl='',sessionToken='',bridgeClientId='',bridgeFrame=null,bridgeForm=n
 let cashierReceiptPrefs={receiptWidth:'80',fontSize:'11',headerAlign:'center',showAddress:true,showReceiptNo:true,showPayment:true,showTransactionType:true,showSubtotal:true,showDiscount:true,showTax:true,showCashInfo:true,showThankYou:true,footerText:'Terima kasih telah berbelanja.'};
 let cashierPharmacyProfile={};
 let productSaveRequestId='', productPendingPayloadJson='', productSaveAckTimer=null, productSaveResultTimer=null, productSaveRetryTimer=null, productSaveRetryCount=0;
-let barcodePendingRequestId='',barcodePendingTimer=null,barcodeRetryCount=0,barcodePendingRecoveryUnknown=false;
+let barcodePendingRequestId='',barcodePendingTimer=null,barcodeRetryCount=0,barcodeProbeStartedAt=0;
+const BARCODE_PENDING_STORAGE_KEY='apotek_scanner_pending_barcode_v1';
+function persistBarcodePending_(){try{if(barcodePendingRequestId)sessionStorage.setItem(BARCODE_PENDING_STORAGE_KEY,JSON.stringify({requestId:barcodePendingRequestId,updatedAt:Date.now()}));else sessionStorage.removeItem(BARCODE_PENDING_STORAGE_KEY)}catch(e){}}
+function restoreBarcodePending_(){try{const v=JSON.parse(sessionStorage.getItem(BARCODE_PENDING_STORAGE_KEY)||'null');if(v&&v.requestId&&Date.now()-Number(v.updatedAt||0)<10*60*1000){barcodePendingRequestId=String(v.requestId);return true}sessionStorage.removeItem(BARCODE_PENDING_STORAGE_KEY)}catch(e){}return false;}
+function clearBarcodePending_(){barcodePendingRequestId='';barcodeProbeStartedAt=0;persistBarcodePending_();if(barcodePendingTimer){clearInterval(barcodePendingTimer);barcodePendingTimer=null}}
+function probeBarcodePending_(){if(!barcodePendingRequestId||!parentReady)return;post('APOTEK_SCANNER_STATUS_PROBE',{requestId:barcodePendingRequestId});}
 const SCANNER_INPUT_ENGINE={buffer:'',lastAt:0,startAt:0,gapMs:120,maxLength:128};
 const SCAN_PROFILES={normal:{fps:10,box:.76,max:380,angleStep:2,engineFps:2},high:{fps:16,box:.84,max:460,angleStep:1,engineFps:4},ultra:{fps:20,box:.90,max:520,angleStep:1,engineFps:5}};
 let activeScanProfile='high';
@@ -492,19 +497,19 @@ function sendCode(raw,source='manual',decodeMeta){
  if(mode==='kasir'){
   if(barcodePendingRequestId){setStatus('Barcode sebelumnya masih diproses Menu Kasir. Tunggu konfirmasi sebelum memindai berikutnya.',true);return;}
   const requestId='scan_'+(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now()+'_'+Math.random().toString(36).slice(2));
-  barcodePendingRequestId=requestId;barcodePendingRecoveryUnknown=false;
+  barcodePendingRequestId=requestId;persistBarcodePending_();barcodeProbeStartedAt=Date.now();
   setStatus('Barcode '+code+' terbaca · mengirim ke Menu Kasir…');
   const sent=post('APOTEK_SCANNER_RESULT',{barcode:code,requestId,source,detectedAt,cameraToDecodeMs,cameraSessionElapsedMs,decodeProcessingMs:decodeMeta&&Number.isFinite(decodeMeta.decodeProcessingMs)?decodeMeta.decodeProcessingMs:null});
-  if(!sent){barcodePendingRequestId='';setStatus('Gagal mengirim barcode ke aplikasi utama. Tutup scanner dan buka kembali dari Menu Kasir.',true);return;}
+  if(!sent){clearBarcodePending_();setStatus('Gagal mengirim barcode ke aplikasi utama. Tutup scanner dan buka kembali dari Menu Kasir.',true);return;}
   if(barcodePendingTimer)clearInterval(barcodePendingTimer);
-  // Keep the request locked until a terminal ACK. Probe status periodically;
-  // never clear the pending ID merely because a local timer elapsed.
-  let waited=0,probeNo=0;
+  let waited=0,lastProbe=0;
   barcodePendingTimer=setInterval(()=>{
-   if(barcodePendingRequestId!==requestId){clearInterval(barcodePendingTimer);barcodePendingTimer=null;return;}
    waited+=1000;
-   if(!barcodePendingRecoveryUnknown&&waited>=5000&&waited%5000===0){probeNo++;post('APOTEK_SCANNER_RESULT_STATUS',{requestId,probeNo,clientElapsedMs:waited});}
-   if(waited>=30000&&waited%10000===0)setStatus('Konfirmasi Menu Kasir belum lengkap. Memeriksa status permintaan secara aman…',true);
+   if(waited>=30000&&barcodePendingRequestId===requestId){
+    if(waited-lastProbe>=5000){lastProbe=waited;probeBarcodePending_();}
+    if(waited===30000)setStatus('Menunggu konfirmasi Menu Kasir. Memeriksa status proses tanpa mengirim ulang barcode…',true);
+    if(waited>=120000)setStatus('Konfirmasi belum tersedia. Jangan pindai ulang; periksa keranjang Menu Kasir sebelum tindakan berikutnya.',true);
+   }
   },1000);
   return;
  }
@@ -895,6 +900,10 @@ window.addEventListener('message',async event=>{
  const d=event.data;if(!d||typeof d!=='object'||d.nonce!==nonce)return;
  if(d.type==='APOTEK_SCANNER_INIT'){
   parentReady=true;
+  if(mode==='kasir'&&!barcodePendingRequestId&&restoreBarcodePending_()){
+   setStatus('Memulihkan status barcode sebelumnya. Tidak ada pengiriman ulang otomatis…',true);
+   setTimeout(()=>{if(barcodePendingRequestId){probeBarcodePending_();let lastProbe=Date.now();barcodePendingTimer=setInterval(()=>{if(!barcodePendingRequestId){clearInterval(barcodePendingTimer);barcodePendingTimer=null;return}if(Date.now()-lastProbe>=5000){lastProbe=Date.now();probeBarcodePending_();}},1000)}},250);
+  }
   bridgeUrl=String(d.bridgeUrl||'').trim();sessionToken=String(d.sessionToken||'').trim();bridgeClientId=String(d.clientId||'').trim();
   if(scannerInitRetryTimer){clearInterval(scannerInitRetryTimer);scannerInitRetryTimer=null;}
   console.info('[Barcode Bridge] Inisialisasi diterima:',{bridgeUrlReceived:!!bridgeUrl,sessionTokenReceived:!!sessionToken,bridgeOrigin:(()=>{try{return new URL(bridgeUrl).origin}catch(e){return ''}})()});
@@ -940,17 +949,13 @@ window.addEventListener('message',async event=>{
  if(d.type==='APOTEK_SCANNER_RESULT_ACK'){
   if(!barcodePendingRequestId||String(d.requestId||'')!==barcodePendingRequestId)return;
   if(d.stage==='received'||d.stage==='processing'){
-   setStatus(d.message||'Barcode diterima · Menu Kasir sedang mencari produk dan memvalidasi stok…');
+   setStatus(d.message||'Barcode diterima · Menu Kasir sedang memproses…');
   }else if(d.stage==='completed'){
-   barcodePendingRequestId='';barcodePendingRecoveryUnknown=false;
-   if(barcodePendingTimer){clearInterval(barcodePendingTimer);barcodePendingTimer=null;}
+   clearBarcodePending_();
    if(d.success)setStatus('✓ '+String(d.message||'Produk berhasil diproses dan keranjang diperbarui.'));
    else setStatus('Barcode diterima, tetapi tidak dapat ditambahkan: '+String(d.message||'Periksa data produk.'),true);
   }else if(d.stage==='unknown'){
-   // An unknown result after a parent reload is ambiguous: the cart may
-   // already have been updated. Never auto-resubmit and risk a duplicate.
-   barcodePendingRecoveryUnknown=true;
-   setStatus('Status permintaan tidak ditemukan pada sesi Menu Kasir. Periksa keranjang terlebih dahulu; jangan pindai ulang barcode ini. Tutup dan buka kembali scanner setelah verifikasi.',true);
+   setStatus(String(d.message||'Status proses tidak diketahui. Jangan kirim ulang; periksa keranjang Menu Kasir.'),true);
   }
  }
  if(d.type==='APOTEK_PRODUCT_SAVE_RESULT'){
