@@ -380,7 +380,7 @@ function enqueueCameraLifecycle_(task,label){
  return run;
 }
 const scannerRuntimeDiagnostics={lastCameraError:null,lastLifecycle:null,blankEvents:0};
-function scannerRuntimeLog_(event,details={}){try{const row={event,at:new Date().toISOString(),ua:navigator.userAgent,platform:navigator.platform||'',visibility:document.visibilityState,secure:!!window.isSecureContext,online:navigator.onLine,details};const key='apotek_scanner_runtime_d5';const rows=JSON.parse(localStorage.getItem(key)||'[]');rows.push(row);while(rows.length>80)rows.shift();localStorage.setItem(key,JSON.stringify(rows));console.info('[APOTEK_SCANNER_RUNTIME]',row)}catch(e){console.info('[APOTEK_SCANNER_RUNTIME]',event,details)}}
+function scannerRuntimeLog_(event,details={}){try{const row={event,at:new Date().toISOString(),ua:navigator.userAgent,platform:navigator.platform||'',visibility:document.visibilityState,secure:!!window.isSecureContext,online:navigator.onLine,details};const key='apotek_scanner_runtime_d5_1_1';const rows=JSON.parse(localStorage.getItem(key)||'[]');rows.push(row);while(rows.length>80)rows.shift();localStorage.setItem(key,JSON.stringify(rows));console.info('[APOTEK_SCANNER_RUNTIME]',row)}catch(e){console.info('[APOTEK_SCANNER_RUNTIME]',event,details)}}
 function isIOSCameraBrowser_(){const ua=navigator.userAgent||'';return /iPhone|iPad|iPod/i.test(ua)||(/Macintosh/i.test(ua)&&navigator.maxTouchPoints>1)}
 function scannerCameraErrorHint_(error){const name=String(error&&error.name||''),msg=String(error&&error.message||error||'');if(name==='NotAllowedError'||name==='SecurityError'||/permission|denied|security/i.test(msg))return 'Safari tidak dapat membuka kamera. Pastikan izin Kamera untuk situs ini aktif dan scanner dibuka melalui HTTPS. Pada iPhone/iPad, coba buka scanner di tab Safari tersendiri.';if(name==='NotFoundError'||name==='DevicesNotFoundError')return 'Perangkat kamera tidak ditemukan.';if(name==='NotReadableError'||name==='TrackStartError')return 'Kamera sedang digunakan aplikasi atau tab lain. Tutup aplikasi kamera lain lalu coba kembali.';if(name==='OverconstrainedError'||name==='ConstraintNotSatisfiedError')return 'Mode kamera yang diminta tidak didukung. Coba ganti kamera atau tekan Coba Lagi.';if(name==='AbortError')return 'Safari menghentikan proses pembukaan kamera. Tekan Coba Lagi.';return 'Kamera gagal diinisialisasi. Tekan Coba Lagi dan periksa diagnostik bila masalah berulang.'}
 function applyScannerVideoPresentation_(){const reader=document.getElementById('reader');if(!reader)return null;const video=reader.querySelector('video');if(!video)return null;video.setAttribute('playsinline','');video.setAttribute('webkit-playsinline','');video.setAttribute('autoplay','');video.muted=true;video.playsInline=true;video.style.display='block';video.style.visibility='visible';video.style.opacity='1';video.style.width='100%';video.style.height='100%';video.style.objectFit='cover';return video}
@@ -415,7 +415,7 @@ function detectDeviceTier_(){
  adaptiveCamera.frameWidth=adaptiveCamera.tier==='constrained'?640:960;
  return adaptiveCamera.tier;
 }
-function getAdaptiveScanProfile_(){detectDeviceTier_();const p=SCAN_PROFILES[activeScanProfile]||SCAN_PROFILES.high;return {...p,fps:adaptiveCamera.effectiveFps,engineFps:adaptiveCamera.engineFps,max:Math.min(p.max,adaptiveCamera.frameWidth*.62)};}
+function getAdaptiveScanProfile_(){detectDeviceTier_();const p=SCAN_PROFILES[activeScanProfile]||SCAN_PROFILES.high;/* iOS keeps the proven D4.3 camera profile; adaptive throttling remains enabled on Android/desktop. */if(isIOSCameraBrowser_()){adaptiveCamera.tier='ios-compatibility';adaptiveCamera.effectiveFps=p.fps;adaptiveCamera.engineFps=p.engineFps;adaptiveCamera.frameWidth=960;return {...p};}return {...p,fps:adaptiveCamera.effectiveFps,engineFps:adaptiveCamera.engineFps,max:Math.min(p.max,adaptiveCamera.frameWidth*.62)};}
 function updateAdaptiveDecodeBudget_(durationMs,found){
  if(!Number.isFinite(durationMs)||durationMs<0)return;
  adaptiveCamera.decodeSamples++;adaptiveCamera.decodeAvgMs=adaptiveCamera.decodeAvgMs?adaptiveCamera.decodeAvgMs*.78+durationMs*.22:durationMs;
@@ -675,6 +675,24 @@ function rotateCanvas_(source,deg){
 }
 async function runMultiAngleFrame_(){
  if(!angleEngine.active||angleEngine.busy)return;if(document.hidden){angleEngine.raf=requestAnimationFrame(runMultiAngleFrame_);return;}const video=angleEngine.video;if(!video||video.readyState<2||!video.videoWidth)return;
+ // iOS compatibility path: restore the lower-cost D4.3 native detection cadence.
+ // D5 adaptive escalation is retained for Android/desktop only.
+ if(isIOSCameraBrowser_()){
+  const profile=SCAN_PROFILES[activeScanProfile]||SCAN_PROFILES.high,iosNow=performance.now();
+  if(iosNow-angleEngine.lastRun<1000/profile.engineFps){angleEngine.raf=requestAnimationFrame(runMultiAngleFrame_);return;}
+  angleEngine.lastRun=iosNow;angleEngine.busy=true;
+  try{
+   const base=angleEngine.canvas;base.width=Math.min(960,video.videoWidth);base.height=Math.max(1,Math.round(video.videoHeight*(base.width/video.videoWidth)));angleEngine.ctx.drawImage(video,0,0,base.width,base.height);
+   angleEngine.frameCount=(angleEngine.frameCount||0)+1;const rotations=angleEngine.frameCount%4===0?[0,180,90,270]:[0,180];
+   for(const deg of rotations){if(!angleEngine.active)break;const frame=deg?rotateCanvas_(base,deg):base;let found=[];const decodeStart=performance.now();try{found=await angleEngine.detector.detect(frame);angleEngine.errors=0;}catch(err){angleEngine.errors++;barcodeEngineSelection.nativeErrors++;scannerRuntimeLog_('IOS_NATIVE_DECODE_ERROR',{name:String(err&&err.name||''),message:String(err&&err.message||err||'')});if(angleEngine.errors>=3){selectFallbackEngine_('Native decoder iOS gagal berulang; beralih ke decoder HTML5.');return;}}
+    for(const item of found){if(item.rawValue){const code=norm(item.rawValue);if(code&&!(code===angleEngine.lastEngineCode&&Date.now()-angleEngine.lastEngineAt<850)){angleEngine.lastEngineCode=code;angleEngine.lastEngineAt=Date.now();sendCode(code,'camera-multi-angle',{decodeProcessingMs:performance.now()-decodeStart});return;}}
+     if(item.cornerPoints&&item.cornerPoints.length>=4&&!item.rawValue){const patch=rectifyBarcodeCandidate_(frame,item.cornerPoints);if(patch){let retry=[];try{retry=await angleEngine.detector.detect(patch);}catch(err){angleEngine.errors++;barcodeEngineSelection.nativeErrors++;scannerRuntimeLog_('IOS_PERSPECTIVE_RETRY_ERROR',{message:String(err&&err.message||err||'')});}for(const r of retry){if(r.rawValue){sendCode(r.rawValue,'camera-perspective-correction',{decodeProcessingMs:performance.now()-decodeStart});return;}}}}
+    }
+   }
+  }catch(err){scannerRuntimeLog_('IOS_COMPAT_DETECT_ERROR',{message:String(err&&err.message||err||'')});}
+  finally{angleEngine.busy=false;if(angleEngine.active)angleEngine.raf=requestAnimationFrame(runMultiAngleFrame_);}
+  return;
+ }
  const now=performance.now();if(now-angleEngine.lastRun<1000/Math.max(1,adaptiveCamera.engineFps))return;angleEngine.lastRun=now;angleEngine.busy=true;
  try{
   const base=angleEngine.canvas;const targetWidth=Math.min(adaptiveCamera.frameWidth||800,video.videoWidth);base.width=targetWidth;base.height=Math.max(1,Math.round(video.videoHeight*(base.width/video.videoWidth)));angleEngine.ctx.drawImage(video,0,0,base.width,base.height);
@@ -1046,7 +1064,7 @@ window.addEventListener('message',async event=>{
  const d=event.data;if(!d||typeof d!=='object'||d.nonce!==nonce)return;
  if(d.type==='APOTEK_CASHIER_DIALOG_SYNC'){renderCashierDialogMirror_(d.dialog);return;}
  if(d.type==='APOTEK_CASHIER_DIALOG_CLOSED'){if(!d.dialogId||String(d.dialogId)===cashierDialogMirrorId_){const root=document.getElementById('cashierDialogMirror');if(root)root.hidden=true;cashierDialogMirrorId_='';cashierDialogMirrorBusy_=false;}return;}
- if(d.type==='APOTEK_CASHIER_DIALOG_ACTION_ACK'){if(String(d.dialogId||'')===cashierDialogMirrorId_){if(d.ok){/* the actual dialog close event will hide this mirror */}else{cashierDialogMirrorBusy_=false;document.querySelectorAll('#cashierDialogMirror button').forEach(b=>b.disabled=false);setStatus(d.message||'Tindakan dialog gagal diteruskan.',true);}}return;}
+ if(d.type==='APOTEK_CASHIER_DIALOG_ACTION_ACK'){if(String(d.dialogId||'')===cashierDialogMirrorId_){if(d.ok){const root=document.getElementById('cashierDialogMirror');if(root)root.hidden=true;cashierDialogMirrorId_='';cashierDialogMirrorBusy_=false;}else{cashierDialogMirrorBusy_=false;document.querySelectorAll('#cashierDialogMirror button').forEach(b=>b.disabled=false);setStatus(d.message||'Tindakan dialog gagal diteruskan.',true);}}return;}
  if(d.type==='APOTEK_SCANNER_INIT'){
   parentReady=true;
   if(mode==='kasir'&&!barcodePendingRequestId&&restoreBarcodePending_()){
@@ -1235,7 +1253,7 @@ else{
  scannerInitRetryTimer=setInterval(()=>{if(!parentReady)requestInit();else{clearInterval(scannerInitRetryTimer);scannerInitRetryTimer=null;}},1200);
  setCameraActiveLabel_('Kamera nonaktif');setCameraToggleUI_('off');
  setStatus(isIOSCameraBrowser_()?'Safari/iOS terdeteksi. Tekan Aktifkan Kamera; bila izin sudah diberikan tetapi kamera tidak tampil, buka scanner di tab Safari tersendiri.':'Scanner siap. Tekan Aktifkan untuk menggunakan kamera; barcode manual dan USB/Bluetooth tetap tersedia.');
- detectDeviceTier_();scannerRuntimeLog_('SCANNER_READY',{embedded,ios:isIOSCameraBrowser_(),mediaDevices:!!navigator.mediaDevices,getUserMedia:!!navigator.mediaDevices?.getUserMedia,barcodeDetector:typeof BarcodeDetector==='function',adaptiveTier:adaptiveCamera.tier,hardwareConcurrency:adaptiveCamera.cores,deviceMemory:adaptiveCamera.memory});
+ detectDeviceTier_();scannerRuntimeLog_('SCANNER_READY',{embedded,ios:isIOSCameraBrowser_(),mediaDevices:!!navigator.mediaDevices,getUserMedia:!!navigator.mediaDevices?.getUserMedia,barcodeDetector:typeof BarcodeDetector==='function',adaptiveTier:adaptiveCamera.tier,hardwareConcurrency:adaptiveCamera.cores,deviceMemory:adaptiveCamera.memory,iosCompatibilityProfile:isIOSCameraBrowser_()});
 }
 })();
 </script>
