@@ -9,7 +9,7 @@
 :root{color-scheme:light;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--green:#059669;--red:#b91c1c}
 *{box-sizing:border-box}body{margin:0;background:#f1f5f9;color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
 main{max-width:650px;margin:0 auto;padding:16px}.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:0 12px 40px #0f172a12}
-header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}h1{font-size:20px;margin:0}p{color:var(--muted);margin:6px 0 12px}.stage{position:relative;overflow:hidden;background:#020617;border-radius:16px;min-height:240px}#reader{width:100%;min-height:240px}#reader video{width:100%;object-fit:cover!important;border-radius:16px}.frame{pointer-events:none;position:absolute;z-index:2;inset:22% 9%;border:2px solid #34d399;border-radius:14px;box-shadow:0 0 0 999px #0002}.laser{position:absolute;left:3%;right:3%;top:50%;height:2px;background:#fb4b4b;box-shadow:0 0 9px 2px #f84646a6;animation:laser 1.8s ease-in-out infinite alternate}@keyframes laser{from{transform:translateY(-55px)}to{transform:translateY(55px)}}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}h1{font-size:20px;margin:0}p{color:var(--muted);margin:6px 0 12px}.stage{position:relative;overflow:hidden;background:#020617;border-radius:16px;min-height:240px;isolation:isolate}#reader{position:relative;display:block;width:100%;min-height:240px;background:#020617;overflow:hidden}#reader__scan_region{display:block!important;width:100%!important;min-height:240px!important;background:#020617!important}#reader video{display:block!important;width:100%!important;height:100%!important;min-height:240px!important;max-height:72vh;object-fit:cover!important;border-radius:16px;background:#020617!important;visibility:visible!important;opacity:1!important}#reader canvas{max-width:100%}.frame{pointer-events:none;position:absolute;z-index:2;inset:22% 9%;border:2px solid #34d399;border-radius:14px;box-shadow:0 0 0 999px #0002}.laser{position:absolute;left:3%;right:3%;top:50%;height:2px;background:#fb4b4b;box-shadow:0 0 9px 2px #f84646a6;animation:laser 1.8s ease-in-out infinite alternate}@keyframes laser{from{transform:translateY(-55px)}to{transform:translateY(55px)}}
 .status{padding:12px 0;min-height:44px;color:#334155}.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}.row{display:flex;gap:8px;flex-wrap:wrap}.row input{flex:1;min-width:180px}
 .scanner-camera-column>.row:last-child{display:flex;justify-content:center;align-items:center;flex-wrap:nowrap;gap:10px;margin-top:12px!important}
 .scanner-camera-column>.row:last-child button{flex:0 1 auto;min-width:0;white-space:nowrap}
@@ -341,6 +341,15 @@ const embedded=window.parent!==window;
 const parentWindow=embedded?window.parent:window.opener;
 if(embedded)document.documentElement.classList.add('apotek-scanner-embedded');
 let qr=null, cameras=[], cameraIndex=0, cameraSwitchRequested=false, cameraFacingMode='environment', lastCode='', lastAt=0, parentReady=false, cameraStartedAt=0, cameraFirstDecodeAt=0;
+let cameraStartInFlight=false,cameraStartGeneration=0,cameraRenderWatchdog=null,cameraLastHealthyAt=0,cameraRecoveryNoticeAt=0;
+const scannerRuntimeDiagnostics={lastCameraError:null,lastLifecycle:null,blankEvents:0};
+function scannerRuntimeLog_(event,details={}){try{const row={event,at:new Date().toISOString(),ua:navigator.userAgent,platform:navigator.platform||'',visibility:document.visibilityState,secure:!!window.isSecureContext,online:navigator.onLine,details};const key='apotek_scanner_runtime_d4_1';const rows=JSON.parse(localStorage.getItem(key)||'[]');rows.push(row);while(rows.length>80)rows.shift();localStorage.setItem(key,JSON.stringify(rows));console.info('[APOTEK_SCANNER_RUNTIME]',row)}catch(e){console.info('[APOTEK_SCANNER_RUNTIME]',event,details)}}
+function isIOSCameraBrowser_(){const ua=navigator.userAgent||'';return /iPhone|iPad|iPod/i.test(ua)||(/Macintosh/i.test(ua)&&navigator.maxTouchPoints>1)}
+function scannerCameraErrorHint_(error){const name=String(error&&error.name||''),msg=String(error&&error.message||error||'');if(name==='NotAllowedError'||name==='SecurityError'||/permission|denied|security/i.test(msg))return 'Safari tidak dapat membuka kamera. Pastikan izin Kamera untuk situs ini aktif dan scanner dibuka melalui HTTPS. Pada iPhone/iPad, coba buka scanner di tab Safari tersendiri.';if(name==='NotFoundError'||name==='DevicesNotFoundError')return 'Perangkat kamera tidak ditemukan.';if(name==='NotReadableError'||name==='TrackStartError')return 'Kamera sedang digunakan aplikasi atau tab lain. Tutup aplikasi kamera lain lalu coba kembali.';if(name==='OverconstrainedError'||name==='ConstraintNotSatisfiedError')return 'Mode kamera yang diminta tidak didukung. Coba ganti kamera atau tekan Coba Lagi.';if(name==='AbortError')return 'Safari menghentikan proses pembukaan kamera. Tekan Coba Lagi.';return 'Kamera gagal diinisialisasi. Tekan Coba Lagi dan periksa diagnostik bila masalah berulang.'}
+function applyScannerVideoPresentation_(){const reader=document.getElementById('reader');if(!reader)return null;const video=reader.querySelector('video');if(!video)return null;video.setAttribute('playsinline','');video.setAttribute('webkit-playsinline','');video.setAttribute('autoplay','');video.muted=true;video.playsInline=true;video.style.display='block';video.style.visibility='visible';video.style.opacity='1';video.style.width='100%';video.style.height='100%';video.style.objectFit='cover';return video}
+function verifyScannerVideoFrame_(timeoutMs=4500){return new Promise(resolve=>{const started=Date.now();let playRequested=false;const check=()=>{const video=applyScannerVideoPresentation_();if(video&&!playRequested){playRequested=true;try{const p=video.play();if(p&&typeof p.catch==='function')p.catch(err=>scannerRuntimeLog_('VIDEO_PLAY_REJECTED',{name:String(err&&err.name||''),message:String(err&&err.message||err||'')}))}catch(err){scannerRuntimeLog_('VIDEO_PLAY_ERROR',{message:String(err&&err.message||err||'')})}}if(video&&video.readyState>=2&&video.videoWidth>0&&video.videoHeight>0){cameraLastHealthyAt=Date.now();resolve({ok:true,video});return}if(Date.now()-started>=timeoutMs){resolve({ok:false,video});return}requestAnimationFrame(check)};check()})}
+function startCameraRenderWatchdog_(){if(cameraRenderWatchdog)clearInterval(cameraRenderWatchdog);cameraRenderWatchdog=setInterval(()=>{if(!qr||!qr.isScanning||document.hidden)return;const video=applyScannerVideoPresentation_();const stream=video&&video.srcObject;const track=stream&&stream.getVideoTracks?stream.getVideoTracks()[0]:null;const healthy=!!(video&&video.readyState>=2&&video.videoWidth>0&&video.videoHeight>0&&track&&track.readyState==='live'&&track.enabled!==false);if(healthy){cameraLastHealthyAt=Date.now();return}if(Date.now()-cameraLastHealthyAt<5000)return;const now=Date.now();if(now-cameraRecoveryNoticeAt<8000)return;cameraRecoveryNoticeAt=now;scannerRuntimeDiagnostics.blankEvents++;scannerRuntimeLog_('CAMERA_RENDER_STALLED',{videoFound:!!video,readyState:video?.readyState||0,width:video?.videoWidth||0,height:video?.videoHeight||0,trackState:track?.readyState||'missing'});setCameraActiveLabel_('Tampilan kamera terhenti');setCameraToggleUI_('off');setStatus('Kamera terhubung tetapi gambar tidak tampil. Tekan Coba Lagi untuk memulihkan kamera. Tidak ada restart atau pemindaian ulang otomatis.',true)},2500)}
+function stopCameraRenderWatchdog_(){if(cameraRenderWatchdog){clearInterval(cameraRenderWatchdog);cameraRenderWatchdog=null}}
 let bridgeUrl='',sessionToken='',bridgeClientId='',bridgeFrame=null,bridgeForm=null,scannerInitRetryTimer=null;
 let cashierReceiptPrefs={receiptWidth:'80',fontSize:'11',headerAlign:'center',showAddress:true,showReceiptNo:true,showPayment:true,showTransactionType:true,showSubtotal:true,showDiscount:true,showTax:true,showCashInfo:true,showThankYou:true,footerText:'Terima kasih telah berbelanja.'};
 let cashierPharmacyProfile={};
@@ -521,7 +530,7 @@ function sendCode(raw,source='manual',decodeMeta){
  }
  try{const C=window.AudioContext||window.webkitAudioContext;if(C){const c=new C(),o=c.createOscillator(),g=c.createGain();o.frequency.value=1450;g.gain.value=.08;o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.1);o.onended=()=>c.close()}}catch(e){}
 }
-async function stopCamera(){cameraStartedAt=0;cameraFirstDecodeAt=0;stopMultiAngleEngine_();if(qr){try{if(qr.isScanning)await qr.stop()}catch(e){}try{qr.clear()}catch(e){}qr=null}const reader=document.getElementById('reader');if(reader)reader.innerHTML='';setCameraActiveLabel_('Kamera tidak aktif');setCameraToggleUI_('off')}
+async function stopCamera(){cameraStartGeneration++;stopCameraRenderWatchdog_();cameraStartedAt=0;cameraFirstDecodeAt=0;cameraLastHealthyAt=0;stopMultiAngleEngine_();const active=qr;qr=null;if(active){try{if(active.isScanning)await active.stop()}catch(e){}try{active.clear()}catch(e){}}const reader=document.getElementById('reader');if(reader)reader.innerHTML='';setCameraActiveLabel_('Kamera tidak aktif');setCameraToggleUI_('off')}
 function isMobileScannerDevice(){
  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'');
 }
@@ -693,8 +702,12 @@ if(document.readyState==='loading'){
 }
 
 async function startCamera(){
+ if(cameraStartInFlight)return false;
+ cameraStartInFlight=true;const generation=++cameraStartGeneration;
  setCameraToggleUI_('off',true);
- await stopCamera();
+ try{await stopCamera();}catch(e){}
+ // stopCamera invalidates previous generation; claim a fresh generation for this start.
+ const activeGeneration=++cameraStartGeneration;
  if(!window.isSecureContext){setCameraToggleUI_('off');setCameraActiveLabel_('Kamera tidak aktif');setStatus('Kamera memerlukan HTTPS. Pastikan halaman ini dibuka dari GitHub Pages.',true);return}
  if(!window.Html5Qrcode){setCameraToggleUI_('off');setCameraActiveLabel_('Kamera tidak aktif');setStatus('Library scanner gagal dimuat. Periksa koneksi internet, atau gunakan input manual.',true);return}
  const profile=SCAN_PROFILES[activeScanProfile]||SCAN_PROFILES.high;
@@ -741,7 +754,7 @@ async function startCamera(){
    }else{
     // Saat pembukaan pertama, utamakan kamera belakang melalui facingMode.
     try{
-     await qr.start({facingMode:cameraFacingMode},scanConfig,onDecoded,()=>{});
+     await qr.start(isIOSCameraBrowser_()?{facingMode:{ideal:cameraFacingMode}}:{facingMode:cameraFacingMode},scanConfig,onDecoded,()=>{});
      cameras=await Html5Qrcode.getCameras().catch(()=>[]);
      const preferredIndex=cameraFacingMode==='user'?cameras.findIndex(c=>/front|user|depan|facetime/i.test(c.label||'')):rearCameraIndex(cameras);
      cameraIndex=preferredIndex>=0?preferredIndex:0;
@@ -762,11 +775,15 @@ async function startCamera(){
    cameraIndex=Math.min(cameraIndex,cameras.length-1);
    await qr.start(cameras[cameraIndex].id,scanConfig,onDecoded,()=>{});
   }
-  cameraStartedAt=Date.now();cameraFirstDecodeAt=0;
+  if(activeGeneration!==cameraStartGeneration){try{if(qr&&qr.isScanning)await qr.stop()}catch(_){}return false;}
+  const videoCheck=await verifyScannerVideoFrame_(isIOSCameraBrowser_()?6500:4500);
+  if(!videoCheck.ok){const err=new Error('Kamera berhasil diminta tetapi frame video tidak tersedia.');err.name='CameraRenderTimeout';throw err;}
+  cameraStartedAt=Date.now();cameraFirstDecodeAt=0;cameraLastHealthyAt=Date.now();
   await applyCameraEnhancements_();
   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
   initScannerControlOverlay_();
   await startMultiAngleEngine_();
+  startCameraRenderWatchdog_();
   setCameraActiveLabel_(getActiveCameraLabel_());
   setCameraToggleUI_('active');
   setStatus((isMobileScannerDevice()?(cameraFacingMode==='user'?'Kamera depan aktif':'Kamera belakang aktif'):'Kamera aktif')+' — sensitivitas '+activeScanProfile.toUpperCase()+'. Automatic Barcode Engine siap.');
@@ -774,7 +791,9 @@ async function startCamera(){
   return true;
  }catch(e){
   const n=String(e&&e.name||''),m=String(e&&e.message||e||'');
-  let tip='Periksa izin kamera browser dan tutup aplikasi lain yang sedang memakai kamera.';
+  scannerRuntimeDiagnostics.lastCameraError={name:n,message:m,at:Date.now()};scannerRuntimeLog_('CAMERA_START_FAILED',{name:n,message:m,isIOS:isIOSCameraBrowser_(),generation:activeGeneration});
+  let tip=scannerCameraErrorHint_(e)+' ';
+  if(n==='CameraRenderTimeout')tip='Kamera memberi izin tetapi Safari/browser tidak menghasilkan frame video. Tutup scanner, buka kembali, lalu tekan Aktifkan Kamera.';
   if(n==='NotAllowedError'||/permission denied|notallowederror/i.test(m)){
    const policy=document.permissionsPolicy||document.featurePolicy;
    let cameraPolicyAllowed=null;
@@ -791,7 +810,7 @@ async function startCamera(){
   setCameraToggleUI_('off');
   setStatus(tip+' Detail: '+n+' '+m,true);
   return false;
- }
+ }finally{cameraStartInFlight=false;}
 }
 
 let productSavedCount=0;
@@ -999,19 +1018,23 @@ window.addEventListener('message',async event=>{
 let cameraLifecycleNoticeAt=0;
 function inspectCameraLifecycle_(reason){
  const reader=document.getElementById('reader');if(!reader)return;
- const video=reader.querySelector('video');if(!video)return;
- const stream=video.srcObject;const tracks=stream&&typeof stream.getVideoTracks==='function'?stream.getVideoTracks():[];
+ const video=reader.querySelector('video');
+ if(!qr||!qr.isScanning)return;
+ const stream=video&&video.srcObject;const tracks=stream&&typeof stream.getVideoTracks==='function'?stream.getVideoTracks():[];
  const track=tracks[0];const live=!!(track&&track.readyState==='live'&&track.enabled!==false);
- const rendered=video.readyState>=2&&video.videoWidth>0&&video.videoHeight>0;
+ const rendered=!!(video&&video.readyState>=2&&video.videoWidth>0&&video.videoHeight>0);
  if(!live||!rendered){
   const now=Date.now();if(now-cameraLifecycleNoticeAt<1200)return;cameraLifecycleNoticeAt=now;
+  scannerRuntimeDiagnostics.lastLifecycle={reason,live,rendered,videoFound:!!video,at:now};scannerRuntimeLog_('CAMERA_LIFECYCLE_UNHEALTHY',{reason,live,rendered,videoFound:!!video,readyState:video?.readyState||0,width:video?.videoWidth||0,height:video?.videoHeight||0});
   setCameraActiveLabel_('Kamera dijeda — perlu tindakan');setCameraToggleUI_('off');
-  setStatus('Tampilan kamera terhenti saat tab berpindah atau browser menjeda kamera. Tidak ada pemindaian ulang otomatis. Tekan Aktifkan Kamera untuk memulai kembali.',true);
+  setStatus('Tampilan kamera terhenti saat tab berpindah atau browser menjeda kamera. Tidak ada pemindaian ulang otomatis. Tekan Coba Lagi untuk memulai kembali.',true);
  }
 }
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(()=>inspectCameraLifecycle_('visibilitychange'),350)});
-window.addEventListener('pageshow',()=>setTimeout(()=>inspectCameraLifecycle_('pageshow'),350));
-window.addEventListener('focus',()=>setTimeout(()=>inspectCameraLifecycle_('focus'),350));
+document.addEventListener('visibilitychange',()=>{scannerRuntimeLog_('VISIBILITY_CHANGE',{state:document.visibilityState});if(!document.hidden)setTimeout(()=>inspectCameraLifecycle_('visibilitychange'),500)});
+window.addEventListener('pageshow',ev=>{scannerRuntimeLog_('PAGE_SHOW',{persisted:!!ev.persisted});setTimeout(()=>inspectCameraLifecycle_('pageshow'),500)});
+window.addEventListener('focus',()=>setTimeout(()=>inspectCameraLifecycle_('focus'),500));
+window.addEventListener('error',e=>scannerRuntimeLog_('WINDOW_ERROR',{message:String(e.message||''),source:String(e.filename||''),line:e.lineno||0,column:e.colno||0}));
+window.addEventListener('unhandledrejection',e=>scannerRuntimeLog_('UNHANDLED_REJECTION',{reason:String(e.reason?.message||e.reason||'unknown')}));
 
 const manualReleaseBtn=document.getElementById('barcodePendingManualRelease');
 if(manualReleaseBtn)manualReleaseBtn.addEventListener('click',()=>{
@@ -1023,7 +1046,7 @@ if(manualReleaseBtn)manualReleaseBtn.addEventListener('click',()=>{
 });
 const sendManualBtn=document.getElementById('sendManual');if(sendManualBtn)sendManualBtn.addEventListener('click',()=>sendCode(document.getElementById('manual')?.value||''));
 document.getElementById('manual')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendCode(e.currentTarget.value)}});
-document.getElementById('retry').addEventListener('click',()=>{if(qr&&qr.isScanning)startCamera();else startCamera()});
+document.getElementById('retry').addEventListener('click',()=>{if(cameraStartInFlight)return;startCamera()});
 document.getElementById('cameraToggle')?.addEventListener('click',async()=>{const btn=document.getElementById('cameraToggle');if(btn?.disabled)return;if(qr&&qr.isScanning){await stopCamera();setStatus('Kamera dinonaktifkan. Barcode manual dan USB/Bluetooth tetap dapat digunakan.');}else{const ok=await startCamera();if(!ok)setCameraToggleUI_('off');}});
 const scannerInfoDialog=document.getElementById('scannerInfoDialog');
 renderScannerInfo_();
@@ -1072,7 +1095,8 @@ else{
  requestInit();
  scannerInitRetryTimer=setInterval(()=>{if(!parentReady)requestInit();else{clearInterval(scannerInitRetryTimer);scannerInitRetryTimer=null;}},1200);
  setCameraActiveLabel_('Kamera nonaktif');setCameraToggleUI_('off');
- setStatus('Scanner siap. Tekan Aktifkan untuk menggunakan kamera; barcode manual dan USB/Bluetooth tetap tersedia.');
+ setStatus(isIOSCameraBrowser_()?'Safari/iOS terdeteksi. Tekan Aktifkan Kamera; bila izin sudah diberikan tetapi kamera tidak tampil, buka scanner di tab Safari tersendiri.':'Scanner siap. Tekan Aktifkan untuk menggunakan kamera; barcode manual dan USB/Bluetooth tetap tersedia.');
+ scannerRuntimeLog_('SCANNER_READY',{embedded,ios:isIOSCameraBrowser_(),mediaDevices:!!navigator.mediaDevices,getUserMedia:!!navigator.mediaDevices?.getUserMedia,barcodeDetector:typeof BarcodeDetector==='function'});
 }
 })();
 </script>
