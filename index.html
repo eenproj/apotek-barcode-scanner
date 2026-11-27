@@ -275,7 +275,7 @@ main>.card{padding-top:clamp(10px,1.4vw,16px)}
 <div class="scanner-workspace">
  <div class="scanner-camera-column">
   <div class="stage"><div id="reader"></div><div class="scanner-camera-active" id="scannerCameraActive" aria-live="polite"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 5h-4l-2 2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/></svg><span id="scannerCameraActiveText">Menyiapkan kamera…</span></div><div class="frame"><div class="laser"></div></div></div>
-  <div id="status" class="status" role="status" aria-live="polite">Menyiapkan scanner…</div><div id="scannerLiveStatus" class="sr-only" aria-live="polite"></div>
+  <div id="status" class="status" role="status" aria-live="polite">Menyiapkan scanner…</div><button id="barcodePendingManualRelease" type="button" hidden style="display:none;margin:0 0 10px;padding:10px 12px;border:1px solid #f59e0b;border-radius:10px;background:#422006;color:#fef3c7;font-weight:700">Saya sudah memeriksa keranjang — izinkan pemindaian berikutnya</button><div id="scannerLiveStatus" class="sr-only" aria-live="polite"></div>
   <div class="row"><input id="manual" class="field" autocomplete="off" inputmode="text" placeholder="Atau masukkan barcode manual"><button id="sendManual" class="primary" type="button">Kirim barcode</button></div>
   <div id="scannerControlHost" class="scanner-control-host"><div class="scanner-control-row" id="scannerControlRow">
    <button id="cameraToggle" class="scanner-icon-btn camera-toggle-btn" type="button" aria-label="Aktifkan kamera" title="Aktifkan kamera"><svg id="cameraToggleIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 5h-4l-2 2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/></svg><span id="cameraToggleText">Aktifkan</span></button>
@@ -345,11 +345,11 @@ let bridgeUrl='',sessionToken='',bridgeClientId='',bridgeFrame=null,bridgeForm=n
 let cashierReceiptPrefs={receiptWidth:'80',fontSize:'11',headerAlign:'center',showAddress:true,showReceiptNo:true,showPayment:true,showTransactionType:true,showSubtotal:true,showDiscount:true,showTax:true,showCashInfo:true,showThankYou:true,footerText:'Terima kasih telah berbelanja.'};
 let cashierPharmacyProfile={};
 let productSaveRequestId='', productPendingPayloadJson='', productSaveAckTimer=null, productSaveResultTimer=null, productSaveRetryTimer=null, productSaveRetryCount=0;
-let barcodePendingRequestId='',barcodePendingTimer=null,barcodeRetryCount=0,barcodeProbeStartedAt=0;
+let barcodePendingRequestId='',barcodePendingTimer=null,barcodeRetryCount=0,barcodeProbeStartedAt=0,barcodePendingState='idle';
 const BARCODE_PENDING_STORAGE_KEY='apotek_scanner_pending_barcode_v1';
 function persistBarcodePending_(){try{if(barcodePendingRequestId)sessionStorage.setItem(BARCODE_PENDING_STORAGE_KEY,JSON.stringify({requestId:barcodePendingRequestId,updatedAt:Date.now()}));else sessionStorage.removeItem(BARCODE_PENDING_STORAGE_KEY)}catch(e){}}
 function restoreBarcodePending_(){try{const v=JSON.parse(sessionStorage.getItem(BARCODE_PENDING_STORAGE_KEY)||'null');if(v&&v.requestId&&Date.now()-Number(v.updatedAt||0)<10*60*1000){barcodePendingRequestId=String(v.requestId);return true}sessionStorage.removeItem(BARCODE_PENDING_STORAGE_KEY)}catch(e){}return false;}
-function clearBarcodePending_(){barcodePendingRequestId='';barcodeProbeStartedAt=0;persistBarcodePending_();if(barcodePendingTimer){clearInterval(barcodePendingTimer);barcodePendingTimer=null}}
+function clearBarcodePending_(){barcodePendingRequestId='';barcodeProbeStartedAt=0;barcodePendingState='idle';persistBarcodePending_();if(barcodePendingTimer){clearInterval(barcodePendingTimer);barcodePendingTimer=null}}
 function probeBarcodePending_(){if(!barcodePendingRequestId||!parentReady)return;post('APOTEK_SCANNER_STATUS_PROBE',{requestId:barcodePendingRequestId});}
 const SCANNER_INPUT_ENGINE={buffer:'',lastAt:0,startAt:0,gapMs:120,maxLength:128};
 const SCAN_PROFILES={normal:{fps:10,box:.76,max:380,angleStep:2,engineFps:2},high:{fps:16,box:.84,max:460,angleStep:1,engineFps:4},ultra:{fps:20,box:.90,max:520,angleStep:1,engineFps:5}};
@@ -497,7 +497,7 @@ function sendCode(raw,source='manual',decodeMeta){
  if(mode==='kasir'){
   if(barcodePendingRequestId){setStatus('Barcode sebelumnya masih diproses Menu Kasir. Tunggu konfirmasi sebelum memindai berikutnya.',true);return;}
   const requestId='scan_'+(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now()+'_'+Math.random().toString(36).slice(2));
-  barcodePendingRequestId=requestId;persistBarcodePending_();barcodeProbeStartedAt=Date.now();
+  barcodePendingRequestId=requestId;barcodePendingState='processing';persistBarcodePending_();barcodeProbeStartedAt=Date.now();
   setStatus('Barcode '+code+' terbaca · mengirim ke Menu Kasir…');
   const sent=post('APOTEK_SCANNER_RESULT',{barcode:code,requestId,source,detectedAt,cameraToDecodeMs,cameraSessionElapsedMs,decodeProcessingMs:decodeMeta&&Number.isFinite(decodeMeta.decodeProcessingMs)?decodeMeta.decodeProcessingMs:null});
   if(!sent){clearBarcodePending_();setStatus('Gagal mengirim barcode ke aplikasi utama. Tutup scanner dan buka kembali dari Menu Kasir.',true);return;}
@@ -506,9 +506,10 @@ function sendCode(raw,source='manual',decodeMeta){
   barcodePendingTimer=setInterval(()=>{
    waited+=1000;
    if(waited>=30000&&barcodePendingRequestId===requestId){
-    if(waited-lastProbe>=5000){lastProbe=waited;probeBarcodePending_();}
-    if(waited===30000)setStatus('Menunggu konfirmasi Menu Kasir. Memeriksa status proses tanpa mengirim ulang barcode…',true);
-    if(waited>=120000)setStatus('Konfirmasi belum tersedia. Jangan pindai ulang; periksa keranjang Menu Kasir sebelum tindakan berikutnya.',true);
+    if(waited-lastProbe>=5000&&waited<=600000){lastProbe=waited;probeBarcodePending_();}
+    if(waited===30000)setStatus('Menunggu konfirmasi Menu Kasir. Memeriksa status tanpa mengirim ulang barcode…',true);
+    if(waited>=120000&&waited<600000)setStatus('Konfirmasi belum tersedia. Jangan pindai ulang; periksa keranjang dan riwayat transaksi Menu Kasir.',true);
+    if(waited>=600000){if(barcodePendingTimer){clearInterval(barcodePendingTimer);barcodePendingTimer=null;}setStatus('Batas pemeriksaan otomatis tercapai. Request tetap dikunci dan tidak dikirim ulang. Periksa keranjang dan riwayat transaksi sebelum melepas penguncian.',true);}
    }
   },1000);
   return;
@@ -676,10 +677,18 @@ window.addEventListener('orientationchange',()=>setTimeout(scheduleScannerContro
 // setelah kamera berhasil start. Pada perangkat mobile/tablet, permintaan
 // izin kamera dapat tertunda/ditolak; kontrol tetap harus terlihat dan dapat
 // digunakan (retry, ganti kamera, sensitivitas, dan informasi).
+function applyScannerViewportLayout_(){
+ const stage=document.querySelector('.scanner-camera-column .stage');if(!stage)return;
+ const vv=window.visualViewport;const width=vv&&vv.width?vv.width:window.innerWidth;
+ document.documentElement.style.setProperty('--scanner-vw',Math.max(0,Math.round(width))+'px');
+}
+window.addEventListener('resize',applyScannerViewportLayout_,{passive:true});
+window.addEventListener('orientationchange',()=>setTimeout(applyScannerViewportLayout_,180),{passive:true});
+if(window.visualViewport)window.visualViewport.addEventListener('resize',applyScannerViewportLayout_,{passive:true});
 if(document.readyState==='loading'){
- document.addEventListener('DOMContentLoaded',()=>initScannerControlOverlay_(),{once:true});
+ document.addEventListener('DOMContentLoaded',()=>{initScannerControlOverlay_();applyScannerViewportLayout_();},{once:true});
 }else{
- initScannerControlOverlay_();
+ initScannerControlOverlay_();applyScannerViewportLayout_();
 }
 
 async function startCamera(){
@@ -949,13 +958,15 @@ window.addEventListener('message',async event=>{
  if(d.type==='APOTEK_SCANNER_RESULT_ACK'){
   if(!barcodePendingRequestId||String(d.requestId||'')!==barcodePendingRequestId)return;
   if(d.stage==='received'||d.stage==='processing'){
-   setStatus(d.message||'Barcode diterima · Menu Kasir sedang memproses…');
+   barcodePendingState='processing';setStatus(d.message||'Barcode diterima · Menu Kasir sedang memproses…');
   }else if(d.stage==='completed'){
-   clearBarcodePending_();
+   barcodePendingState='completed';clearBarcodePending_();
    if(d.success)setStatus('✓ '+String(d.message||'Produk berhasil diproses dan keranjang diperbarui.'));
    else setStatus('Barcode diterima, tetapi tidak dapat ditambahkan: '+String(d.message||'Periksa data produk.'),true);
   }else if(d.stage==='unknown'){
-   setStatus(String(d.message||'Status proses tidak diketahui. Jangan kirim ulang; periksa keranjang Menu Kasir.'),true);
+   barcodePendingState='unknown';if(barcodePendingTimer){clearInterval(barcodePendingTimer);barcodePendingTimer=null;}
+   const release=document.getElementById('barcodePendingManualRelease');if(release){release.hidden=false;release.style.display='block';}
+   setStatus(String(d.message||'Status proses tidak diketahui. Jangan kirim ulang; periksa keranjang dan riwayat transaksi Menu Kasir.'),true);
   }
  }
  if(d.type==='APOTEK_PRODUCT_SAVE_RESULT'){
@@ -981,6 +992,14 @@ window.addEventListener('message',async event=>{
   stopCamera();
   if(!embedded)window.close();
  }
+});
+const manualReleaseBtn=document.getElementById('barcodePendingManualRelease');
+if(manualReleaseBtn)manualReleaseBtn.addEventListener('click',()=>{
+ if(!barcodePendingRequestId)return;
+ const ok=window.confirm('Pastikan Anda sudah memeriksa keranjang transaksi dan riwayat penjualan pada Menu Kasir. Jika transaksi sebelumnya ternyata sudah masuk, memindai ulang dapat menambahkan barang dua kali. Lepaskan penguncian scanner?');
+ if(!ok)return;
+ clearBarcodePending_();manualReleaseBtn.hidden=true;manualReleaseBtn.style.display='none';
+ setStatus('Penguncian dilepas atas konfirmasi operator. Anda dapat memindai barcode berikutnya.');
 });
 const sendManualBtn=document.getElementById('sendManual');if(sendManualBtn)sendManualBtn.addEventListener('click',()=>sendCode(document.getElementById('manual')?.value||''));
 document.getElementById('manual')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendCode(e.currentTarget.value)}});
