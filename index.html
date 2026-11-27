@@ -962,7 +962,7 @@ window.addEventListener('message',async event=>{
   }else if(d.stage==='completed'){
    barcodePendingState='completed';clearBarcodePending_();
    if(d.success)setStatus('✓ '+String(d.message||'Produk berhasil diproses dan keranjang diperbarui.'));
-   else setStatus('Barcode diterima, tetapi tidak dapat ditambahkan: '+String(d.message||'Periksa data produk.'),true);
+   else setStatus(String(d.message||'Barcode diterima tetapi belum dapat ditambahkan. Periksa keranjang dan status produk.'),true);
   }else if(d.stage==='unknown'){
    barcodePendingState='unknown';if(barcodePendingTimer){clearInterval(barcodePendingTimer);barcodePendingTimer=null;}
    const release=document.getElementById('barcodePendingManualRelease');if(release){release.hidden=false;release.style.display='block';}
@@ -993,6 +993,25 @@ window.addEventListener('message',async event=>{
   if(!embedded)window.close();
  }
 });
+// Camera lifecycle recovery: detect suspended/ended tracks on return, but never
+// call getUserMedia/startCamera automatically. Operator must explicitly restart.
+let cameraLifecycleNoticeAt=0;
+function inspectCameraLifecycle_(reason){
+ const reader=document.getElementById('reader');if(!reader)return;
+ const video=reader.querySelector('video');if(!video)return;
+ const stream=video.srcObject;const tracks=stream&&typeof stream.getVideoTracks==='function'?stream.getVideoTracks():[];
+ const track=tracks[0];const live=!!(track&&track.readyState==='live'&&track.enabled!==false);
+ const rendered=video.readyState>=2&&video.videoWidth>0&&video.videoHeight>0;
+ if(!live||!rendered){
+  const now=Date.now();if(now-cameraLifecycleNoticeAt<1200)return;cameraLifecycleNoticeAt=now;
+  setCameraActiveLabel_('Kamera dijeda — perlu tindakan');setCameraToggleUI_('off');
+  setStatus('Tampilan kamera terhenti saat tab berpindah atau browser menjeda kamera. Tidak ada pemindaian ulang otomatis. Tekan Aktifkan Kamera untuk memulai kembali.',true);
+ }
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(()=>inspectCameraLifecycle_('visibilitychange'),350)});
+window.addEventListener('pageshow',()=>setTimeout(()=>inspectCameraLifecycle_('pageshow'),350));
+window.addEventListener('focus',()=>setTimeout(()=>inspectCameraLifecycle_('focus'),350));
+
 const manualReleaseBtn=document.getElementById('barcodePendingManualRelease');
 if(manualReleaseBtn)manualReleaseBtn.addEventListener('click',()=>{
  if(!barcodePendingRequestId)return;
