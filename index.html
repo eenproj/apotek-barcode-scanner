@@ -961,8 +961,8 @@ window.addEventListener('message',async event=>{
    barcodePendingState='processing';setStatus(d.message||'Barcode diterima · Menu Kasir sedang memproses…');
   }else if(d.stage==='completed'){
    barcodePendingState='completed';clearBarcodePending_();
-   if(d.success)setStatus('✓ '+String(d.message||'Produk berhasil diproses dan keranjang diperbarui.'));
-   else setStatus(String(d.message||'Barcode diterima tetapi belum dapat ditambahkan. Periksa keranjang dan status produk.'),true);
+   if(d.success)setStatus('✓ '+String(d.message||'Produk berhasil ditambahkan ke keranjang.')+(d.outcome?.status?' ['+d.outcome.status+']':''));
+   else setStatus(String(d.message||'Barcode belum berhasil ditambahkan.')+(d.outcome?.status?' ['+d.outcome.status+']':''),true);
   }else if(d.stage==='unknown'){
    barcodePendingState='unknown';if(barcodePendingTimer){clearInterval(barcodePendingTimer);barcodePendingTimer=null;}
    const release=document.getElementById('barcodePendingManualRelease');if(release){release.hidden=false;release.style.display='block';}
