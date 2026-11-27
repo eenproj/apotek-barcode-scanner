@@ -342,8 +342,20 @@ const parentWindow=embedded?window.parent:window.opener;
 if(embedded)document.documentElement.classList.add('apotek-scanner-embedded');
 let qr=null, cameras=[], cameraIndex=0, cameraSwitchRequested=false, cameraFacingMode='environment', lastCode='', lastAt=0, parentReady=false, cameraStartedAt=0, cameraFirstDecodeAt=0;
 let cameraStartInFlight=false,cameraStartGeneration=0,cameraRenderWatchdog=null,cameraLastHealthyAt=0,cameraRecoveryNoticeAt=0;
+let cameraLifecycleQueue=Promise.resolve(),cameraLifecycleSequence=0;
+function enqueueCameraLifecycle_(task,label){
+ const sequence=++cameraLifecycleSequence;
+ const run=cameraLifecycleQueue.catch(()=>{}).then(async()=>{
+  scannerRuntimeLog_('CAMERA_TRANSITION_BEGIN',{sequence,label});
+  try{return await task();}
+  catch(error){scannerRuntimeLog_('CAMERA_TRANSITION_ERROR',{sequence,label,name:String(error&&error.name||''),message:String(error&&error.message||error||'')});throw error;}
+  finally{scannerRuntimeLog_('CAMERA_TRANSITION_END',{sequence,label});}
+ });
+ cameraLifecycleQueue=run.catch(()=>{});
+ return run;
+}
 const scannerRuntimeDiagnostics={lastCameraError:null,lastLifecycle:null,blankEvents:0};
-function scannerRuntimeLog_(event,details={}){try{const row={event,at:new Date().toISOString(),ua:navigator.userAgent,platform:navigator.platform||'',visibility:document.visibilityState,secure:!!window.isSecureContext,online:navigator.onLine,details};const key='apotek_scanner_runtime_d4_1';const rows=JSON.parse(localStorage.getItem(key)||'[]');rows.push(row);while(rows.length>80)rows.shift();localStorage.setItem(key,JSON.stringify(rows));console.info('[APOTEK_SCANNER_RUNTIME]',row)}catch(e){console.info('[APOTEK_SCANNER_RUNTIME]',event,details)}}
+function scannerRuntimeLog_(event,details={}){try{const row={event,at:new Date().toISOString(),ua:navigator.userAgent,platform:navigator.platform||'',visibility:document.visibilityState,secure:!!window.isSecureContext,online:navigator.onLine,details};const key='apotek_scanner_runtime_d4_2';const rows=JSON.parse(localStorage.getItem(key)||'[]');rows.push(row);while(rows.length>80)rows.shift();localStorage.setItem(key,JSON.stringify(rows));console.info('[APOTEK_SCANNER_RUNTIME]',row)}catch(e){console.info('[APOTEK_SCANNER_RUNTIME]',event,details)}}
 function isIOSCameraBrowser_(){const ua=navigator.userAgent||'';return /iPhone|iPad|iPod/i.test(ua)||(/Macintosh/i.test(ua)&&navigator.maxTouchPoints>1)}
 function scannerCameraErrorHint_(error){const name=String(error&&error.name||''),msg=String(error&&error.message||error||'');if(name==='NotAllowedError'||name==='SecurityError'||/permission|denied|security/i.test(msg))return 'Safari tidak dapat membuka kamera. Pastikan izin Kamera untuk situs ini aktif dan scanner dibuka melalui HTTPS. Pada iPhone/iPad, coba buka scanner di tab Safari tersendiri.';if(name==='NotFoundError'||name==='DevicesNotFoundError')return 'Perangkat kamera tidak ditemukan.';if(name==='NotReadableError'||name==='TrackStartError')return 'Kamera sedang digunakan aplikasi atau tab lain. Tutup aplikasi kamera lain lalu coba kembali.';if(name==='OverconstrainedError'||name==='ConstraintNotSatisfiedError')return 'Mode kamera yang diminta tidak didukung. Coba ganti kamera atau tekan Coba Lagi.';if(name==='AbortError')return 'Safari menghentikan proses pembukaan kamera. Tekan Coba Lagi.';return 'Kamera gagal diinisialisasi. Tekan Coba Lagi dan periksa diagnostik bila masalah berulang.'}
 function applyScannerVideoPresentation_(){const reader=document.getElementById('reader');if(!reader)return null;const video=reader.querySelector('video');if(!video)return null;video.setAttribute('playsinline','');video.setAttribute('webkit-playsinline','');video.setAttribute('autoplay','');video.muted=true;video.playsInline=true;video.style.display='block';video.style.visibility='visible';video.style.opacity='1';video.style.width='100%';video.style.height='100%';video.style.objectFit='cover';return video}
@@ -530,7 +542,8 @@ function sendCode(raw,source='manual',decodeMeta){
  }
  try{const C=window.AudioContext||window.webkitAudioContext;if(C){const c=new C(),o=c.createOscillator(),g=c.createGain();o.frequency.value=1450;g.gain.value=.08;o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.1);o.onended=()=>c.close()}}catch(e){}
 }
-async function stopCamera(){cameraStartGeneration++;stopCameraRenderWatchdog_();cameraStartedAt=0;cameraFirstDecodeAt=0;cameraLastHealthyAt=0;stopMultiAngleEngine_();const active=qr;qr=null;if(active){try{if(active.isScanning)await active.stop()}catch(e){}try{active.clear()}catch(e){}}const reader=document.getElementById('reader');if(reader)reader.innerHTML='';setCameraActiveLabel_('Kamera tidak aktif');setCameraToggleUI_('off')}
+async function stopCameraCore_(){cameraStartGeneration++;stopCameraRenderWatchdog_();cameraStartedAt=0;cameraFirstDecodeAt=0;cameraLastHealthyAt=0;stopMultiAngleEngine_();const active=qr;qr=null;if(active){try{if(active.isScanning)await active.stop()}catch(e){scannerRuntimeLog_('CAMERA_STOP_ERROR',{name:String(e&&e.name||''),message:String(e&&e.message||e||'')})}try{active.clear()}catch(e){scannerRuntimeLog_('CAMERA_CLEAR_ERROR',{message:String(e&&e.message||e||'')})}}const reader=document.getElementById('reader');if(reader)reader.innerHTML='';setCameraActiveLabel_('Kamera tidak aktif');setCameraToggleUI_('off')}
+function stopCamera(){return enqueueCameraLifecycle_(()=>stopCameraCore_(),'stop')}
 function isMobileScannerDevice(){
  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'');
 }
@@ -701,12 +714,10 @@ if(document.readyState==='loading'){
  initScannerControlOverlay_();applyScannerViewportLayout_();
 }
 
-async function startCamera(){
- if(cameraStartInFlight)return false;
- cameraStartInFlight=true;const generation=++cameraStartGeneration;
+async function startCameraCore_(){
  setCameraToggleUI_('off',true);
- try{await stopCamera();}catch(e){}
- // stopCamera invalidates previous generation; claim a fresh generation for this start.
+ await stopCameraCore_();
+ // All start/stop operations are serialized by enqueueCameraLifecycle_.
  const activeGeneration=++cameraStartGeneration;
  if(!window.isSecureContext){setCameraToggleUI_('off');setCameraActiveLabel_('Kamera tidak aktif');setStatus('Kamera memerlukan HTTPS. Pastikan halaman ini dibuka dari GitHub Pages.',true);return}
  if(!window.Html5Qrcode){setCameraToggleUI_('off');setCameraActiveLabel_('Kamera tidak aktif');setStatus('Library scanner gagal dimuat. Periksa koneksi internet, atau gunakan input manual.',true);return}
@@ -810,7 +821,13 @@ async function startCamera(){
   setCameraToggleUI_('off');
   setStatus(tip+' Detail: '+n+' '+m,true);
   return false;
- }finally{cameraStartInFlight=false;}
+ }
+}
+function startCamera(){
+ // Set synchronously so rapid taps cannot enqueue duplicate start operations.
+ if(cameraStartInFlight)return Promise.resolve(false);
+ cameraStartInFlight=true;
+ return enqueueCameraLifecycle_(()=>startCameraCore_(),'start').finally(()=>{cameraStartInFlight=false;});
 }
 
 let productSavedCount=0;
@@ -1015,7 +1032,26 @@ window.addEventListener('message',async event=>{
 });
 // Camera lifecycle recovery: detect suspended/ended tracks on return, but never
 // call getUserMedia/startCamera automatically. Operator must explicitly restart.
-let cameraLifecycleNoticeAt=0;
+let cameraLifecycleNoticeAt=0,visibleResumeInFlight=false,visibleResumeAt=0;
+async function resumeExistingCameraPreview_(reason){
+ if(visibleResumeInFlight||document.hidden||!qr||!qr.isScanning)return false;
+ const now=Date.now();if(now-visibleResumeAt<700)return false;visibleResumeAt=now;visibleResumeInFlight=true;
+ try{
+  const reader=document.getElementById('reader');const video=reader&&reader.querySelector('video');
+  const stream=video&&video.srcObject;const tracks=stream&&typeof stream.getVideoTracks==='function'?stream.getVideoTracks():[];const track=tracks[0];
+  if(!video||!track||track.readyState!=='live'||track.enabled===false){inspectCameraLifecycle_(reason);return false;}
+  applyScannerVideoPresentation_();
+  if(video.paused){try{await video.play();}catch(error){scannerRuntimeLog_('VIDEO_PLAY_REJECTED',{reason,name:String(error&&error.name||''),message:String(error&&error.message||error||'')});}}
+  const check=await verifyScannerVideoFrame_(2200);
+  if(check.ok){
+   setCameraActiveLabel_(getActiveCameraLabel_());setCameraToggleUI_('active');
+   const status=document.getElementById('status');
+   if(status&&/Tampilan kamera terhenti|Kamera dijeda|gambar tidak tampil/i.test(status.textContent||''))setStatus('Preview kamera berhasil dipulihkan setelah halaman aktif kembali.');
+   scannerRuntimeLog_('CAMERA_PREVIEW_RESUMED',{reason,width:check.video.videoWidth,height:check.video.videoHeight});return true;
+  }
+  inspectCameraLifecycle_(reason);return false;
+ }finally{visibleResumeInFlight=false;}
+}
 function inspectCameraLifecycle_(reason){
  const reader=document.getElementById('reader');if(!reader)return;
  const video=reader.querySelector('video');
@@ -1030,9 +1066,9 @@ function inspectCameraLifecycle_(reason){
   setStatus('Tampilan kamera terhenti saat tab berpindah atau browser menjeda kamera. Tidak ada pemindaian ulang otomatis. Tekan Coba Lagi untuk memulai kembali.',true);
  }
 }
-document.addEventListener('visibilitychange',()=>{scannerRuntimeLog_('VISIBILITY_CHANGE',{state:document.visibilityState});if(!document.hidden)setTimeout(()=>inspectCameraLifecycle_('visibilitychange'),500)});
-window.addEventListener('pageshow',ev=>{scannerRuntimeLog_('PAGE_SHOW',{persisted:!!ev.persisted});setTimeout(()=>inspectCameraLifecycle_('pageshow'),500)});
-window.addEventListener('focus',()=>setTimeout(()=>inspectCameraLifecycle_('focus'),500));
+document.addEventListener('visibilitychange',()=>{scannerRuntimeLog_('VISIBILITY_CHANGE',{state:document.visibilityState});if(!document.hidden)setTimeout(()=>resumeExistingCameraPreview_('visibilitychange'),550)});
+window.addEventListener('pageshow',ev=>{scannerRuntimeLog_('PAGE_SHOW',{persisted:!!ev.persisted});setTimeout(()=>resumeExistingCameraPreview_('pageshow'),550)});
+window.addEventListener('focus',()=>setTimeout(()=>resumeExistingCameraPreview_('focus'),550));
 window.addEventListener('error',e=>scannerRuntimeLog_('WINDOW_ERROR',{message:String(e.message||''),source:String(e.filename||''),line:e.lineno||0,column:e.colno||0}));
 window.addEventListener('unhandledrejection',e=>scannerRuntimeLog_('UNHANDLED_REJECTION',{reason:String(e.reason?.message||e.reason||'unknown')}));
 
