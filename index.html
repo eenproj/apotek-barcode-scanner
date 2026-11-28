@@ -268,33 +268,8 @@ main>.card{padding-top:clamp(10px,1.4vw,16px)}
 /* End v2.0 */
 
 </style>
-<style id="d5-1-cashier-dialog-mirror-css">
-/* D5.1 — mirrored cashier alerts inside scanner surface */
-#cashierDialogMirror{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:calc(14px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom));background:rgba(2,8,18,.78);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
-#cashierDialogMirror[hidden]{display:none!important}
-#cashierDialogMirror .cashier-dialog-card{width:min(520px,100%);max-height:min(82dvh,680px);overflow:auto;border:1px solid rgba(125,211,252,.35);border-radius:18px;background:linear-gradient(160deg,#102b42,#091827);color:#eaf6ff;box-shadow:0 24px 80px rgba(0,0,0,.62);padding:18px}
-#cashierDialogMirror .cashier-dialog-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-#cashierDialogMirror .cashier-dialog-icon{width:34px;height:34px;flex:0 0 34px;border-radius:50%;display:grid;place-items:center;font-size:20px;font-weight:900;background:#173e58;color:#7dd3fc}
-#cashierDialogMirror[data-kind="error"] .cashier-dialog-icon{background:#551d28;color:#fecaca}
-#cashierDialogMirror[data-kind="warning"] .cashier-dialog-icon{background:#553a12;color:#fde68a}
-#cashierDialogMirror .cashier-dialog-title{font-size:16px;font-weight:850;line-height:1.3}
-#cashierDialogMirror .cashier-dialog-message{font-size:14px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;color:#d8e8f5;margin:8px 0 16px}
-#cashierDialogMirror .cashier-dialog-actions{display:flex;justify-content:flex-end;gap:9px;flex-wrap:wrap}
-#cashierDialogMirror button{min-height:42px;border:1px solid rgba(148,163,184,.35);border-radius:11px;padding:10px 16px;font-weight:800;cursor:pointer}
-#cashierDialogMirror .mirror-cancel{background:#20384d;color:#e2e8f0}
-#cashierDialogMirror .mirror-confirm{background:#147dba;color:#fff;border-color:#38bdf8}
-#cashierDialogMirror .mirror-confirm.danger{background:#b91c1c;border-color:#ef4444;color:#fff}
-#cashierDialogMirror button:disabled{opacity:.55;cursor:wait}
-</style>
 </head>
 <body>
-<div id="cashierDialogMirror" hidden role="dialog" aria-modal="true" aria-labelledby="cashierDialogMirrorTitle" aria-describedby="cashierDialogMirrorMessage">
- <section class="cashier-dialog-card">
-  <div class="cashier-dialog-head"><div class="cashier-dialog-icon" id="cashierDialogMirrorIcon">!</div><div class="cashier-dialog-title" id="cashierDialogMirrorTitle">Pemberitahuan Menu Kasir</div></div>
-  <div class="cashier-dialog-message" id="cashierDialogMirrorMessage"></div>
-  <div class="cashier-dialog-actions" id="cashierDialogMirrorActions"></div>
- </section>
-</div>
 <main><section class="card">
 <header><div><h1>▦ Scanner Barcode Apotek</h1></div><button id="closeBtn" type="button">Tutup</button></header>
 <div class="scanner-workspace">
@@ -380,7 +355,7 @@ function enqueueCameraLifecycle_(task,label){
  return run;
 }
 const scannerRuntimeDiagnostics={lastCameraError:null,lastLifecycle:null,blankEvents:0};
-function scannerRuntimeLog_(event,details={}){try{const row={event,at:new Date().toISOString(),ua:navigator.userAgent,platform:navigator.platform||'',visibility:document.visibilityState,secure:!!window.isSecureContext,online:navigator.onLine,details};const key='apotek_scanner_runtime_d5_1_1';const rows=JSON.parse(localStorage.getItem(key)||'[]');rows.push(row);while(rows.length>80)rows.shift();localStorage.setItem(key,JSON.stringify(rows));console.info('[APOTEK_SCANNER_RUNTIME]',row)}catch(e){console.info('[APOTEK_SCANNER_RUNTIME]',event,details)}}
+function scannerRuntimeLog_(event,details={}){try{const row={event,at:new Date().toISOString(),ua:navigator.userAgent,platform:navigator.platform||'',visibility:document.visibilityState,secure:!!window.isSecureContext,online:navigator.onLine,details};const key='apotek_scanner_runtime_d4_3';const rows=JSON.parse(localStorage.getItem(key)||'[]');rows.push(row);while(rows.length>80)rows.shift();localStorage.setItem(key,JSON.stringify(rows));console.info('[APOTEK_SCANNER_RUNTIME]',row)}catch(e){console.info('[APOTEK_SCANNER_RUNTIME]',event,details)}}
 function isIOSCameraBrowser_(){const ua=navigator.userAgent||'';return /iPhone|iPad|iPod/i.test(ua)||(/Macintosh/i.test(ua)&&navigator.maxTouchPoints>1)}
 function scannerCameraErrorHint_(error){const name=String(error&&error.name||''),msg=String(error&&error.message||error||'');if(name==='NotAllowedError'||name==='SecurityError'||/permission|denied|security/i.test(msg))return 'Safari tidak dapat membuka kamera. Pastikan izin Kamera untuk situs ini aktif dan scanner dibuka melalui HTTPS. Pada iPhone/iPad, coba buka scanner di tab Safari tersendiri.';if(name==='NotFoundError'||name==='DevicesNotFoundError')return 'Perangkat kamera tidak ditemukan.';if(name==='NotReadableError'||name==='TrackStartError')return 'Kamera sedang digunakan aplikasi atau tab lain. Tutup aplikasi kamera lain lalu coba kembali.';if(name==='OverconstrainedError'||name==='ConstraintNotSatisfiedError')return 'Mode kamera yang diminta tidak didukung. Coba ganti kamera atau tekan Coba Lagi.';if(name==='AbortError')return 'Safari menghentikan proses pembukaan kamera. Tekan Coba Lagi.';return 'Kamera gagal diinisialisasi. Tekan Coba Lagi dan periksa diagnostik bila masalah berulang.'}
 function applyScannerVideoPresentation_(){const reader=document.getElementById('reader');if(!reader)return null;const video=reader.querySelector('video');if(!video)return null;video.setAttribute('playsinline','');video.setAttribute('webkit-playsinline','');video.setAttribute('autoplay','');video.muted=true;video.playsInline=true;video.style.display='block';video.style.visibility='visible';video.style.opacity='1';video.style.width='100%';video.style.height='100%';video.style.objectFit='cover';return video}
@@ -399,37 +374,9 @@ function setBarcodeManualReleaseVisible_(visible){const btn=document.getElementB
 function clearBarcodePending_(){barcodePendingRequestId='';barcodeProbeStartedAt=0;barcodePendingState='idle';persistBarcodePending_();setBarcodeManualReleaseVisible_(false);if(barcodePendingTimer){clearInterval(barcodePendingTimer);barcodePendingTimer=null}}
 function probeBarcodePending_(){if(!barcodePendingRequestId||!parentReady)return;post('APOTEK_SCANNER_STATUS_PROBE',{requestId:barcodePendingRequestId});}
 const SCANNER_INPUT_ENGINE={buffer:'',lastAt:0,startAt:0,gapMs:120,maxLength:128};
-const SCAN_PROFILES={normal:{fps:10,box:.76,max:380,engineFps:2},high:{fps:16,box:.84,max:460,engineFps:4},ultra:{fps:20,box:.90,max:520,engineFps:5}};
+const SCAN_PROFILES={normal:{fps:10,box:.76,max:380,angleStep:2,engineFps:2},high:{fps:16,box:.84,max:460,angleStep:1,engineFps:4},ultra:{fps:20,box:.90,max:520,angleStep:1,engineFps:5}};
 let activeScanProfile='high';
-const adaptiveCamera={tier:'balanced',cores:0,memory:0,effectiveFps:12,engineFps:2.5,frameWidth:800,decodeAvgMs:0,decodeSamples:0,misses:0,rotationEscalation:0,lastAdaptAt:0,thermalPressure:0};
-function detectDeviceTier_(){
- const cores=Number(navigator.hardwareConcurrency||0),memory=Number(navigator.deviceMemory||0),ua=navigator.userAgent||'';
- adaptiveCamera.cores=cores;adaptiveCamera.memory=memory;
- const constrained=(cores&&cores<=4)||(memory&&memory<=4)||/iPhone (6|7|8|SE)|Android 9/i.test(ua);
- const powerful=(cores>=8&&memory>=8);
- adaptiveCamera.tier=constrained?'constrained':(powerful?'performance':'balanced');
- const base=SCAN_PROFILES[activeScanProfile]||SCAN_PROFILES.high;
- const scale=adaptiveCamera.tier==='constrained'?.68:(adaptiveCamera.tier==='performance'?1.12:1);
- adaptiveCamera.effectiveFps=Math.max(6,Math.min(18,Math.round(base.fps*scale)));
- adaptiveCamera.engineFps=Math.max(1,Math.min(5,base.engineFps*scale));
- adaptiveCamera.frameWidth=adaptiveCamera.tier==='constrained'?640:960;
- return adaptiveCamera.tier;
-}
-function getAdaptiveScanProfile_(){detectDeviceTier_();const p=SCAN_PROFILES[activeScanProfile]||SCAN_PROFILES.high;/* iOS keeps the proven D4.3 camera profile; adaptive throttling remains enabled on Android/desktop. */if(isIOSCameraBrowser_()){adaptiveCamera.tier='ios-compatibility';adaptiveCamera.effectiveFps=p.fps;adaptiveCamera.engineFps=p.engineFps;adaptiveCamera.frameWidth=960;return {...p};}return {...p,fps:adaptiveCamera.effectiveFps,engineFps:adaptiveCamera.engineFps,max:Math.min(p.max,adaptiveCamera.frameWidth*.62)};}
-function updateAdaptiveDecodeBudget_(durationMs,found){
- if(!Number.isFinite(durationMs)||durationMs<0)return;
- adaptiveCamera.decodeSamples++;adaptiveCamera.decodeAvgMs=adaptiveCamera.decodeAvgMs?adaptiveCamera.decodeAvgMs*.78+durationMs*.22:durationMs;
- if(found){adaptiveCamera.misses=0;adaptiveCamera.rotationEscalation=Math.max(0,adaptiveCamera.rotationEscalation-1)}else{adaptiveCamera.misses=Math.min(30,adaptiveCamera.misses+1);adaptiveCamera.rotationEscalation=Math.min(4,adaptiveCamera.rotationEscalation+1)}
- const now=Date.now();if(now-adaptiveCamera.lastAdaptAt<5000)return;adaptiveCamera.lastAdaptAt=now;
- const base=SCAN_PROFILES[activeScanProfile]||SCAN_PROFILES.high;
- if(adaptiveCamera.decodeAvgMs>180){adaptiveCamera.thermalPressure=Math.min(5,adaptiveCamera.thermalPressure+1)}else if(adaptiveCamera.decodeAvgMs<75){adaptiveCamera.thermalPressure=Math.max(0,adaptiveCamera.thermalPressure-1)}
- const cap=adaptiveCamera.tier==='constrained'?2.2:(adaptiveCamera.tier==='performance'?4.5:3.2);
- adaptiveCamera.engineFps=Math.max(1,Math.min(cap,base.engineFps*(adaptiveCamera.thermalPressure?Math.pow(.78,adaptiveCamera.thermalPressure):1)));
- if(adaptiveCamera.decodeAvgMs>240)adaptiveCamera.frameWidth=Math.max(480,adaptiveCamera.frameWidth-80);
- else if(adaptiveCamera.decodeAvgMs<65&&adaptiveCamera.tier==='performance')adaptiveCamera.frameWidth=Math.min(960,adaptiveCamera.frameWidth+40);
- scannerRuntimeLog_('ADAPTIVE_PERFORMANCE_UPDATE',{tier:adaptiveCamera.tier,decodeAvgMs:Math.round(adaptiveCamera.decodeAvgMs),engineFps:Number(adaptiveCamera.engineFps.toFixed(2)),frameWidth:adaptiveCamera.frameWidth,thermalPressure:adaptiveCamera.thermalPressure,misses:adaptiveCamera.misses});
-}
-let angleEngine={detector:null,raf:0,lastRun:0,busy:false,video:null,canvas:null,ctx:null,active:false,rotationIndex:0,lastEngineCode:'',lastEngineAt:0,errors:0,frameCount:0};
+let angleEngine={detector:null,raf:0,lastRun:0,busy:false,video:null,canvas:null,ctx:null,active:false,rotationIndex:0,lastEngineCode:'',lastEngineAt:0,errors:0};
 const barcodeEngineSelection={mode:'initializing',nativeAvailable:false,nativeFormats:[],fallback:'html5-qrcode',nativeErrors:0};
 if(mode==='product'){
  ['manual','status','sendManual'].forEach(id=>document.getElementById(id)?.remove());
@@ -566,7 +513,6 @@ function ucStatusSafeRecovery_(message){try{if(typeof ucStatus==='function')ucSt
 function norm(v){return String(v||'').trim().replace(/\s+/g,'').toUpperCase()}
 function sendCode(raw,source='manual',decodeMeta){
  const code=norm(raw);if(!code)return;
- if(cashierDialogMirrorId_){setStatus('Selesaikan pesan Menu Kasir pada panel ini sebelum melanjutkan pemindaian.',true);return;}
  const now=Date.now(),detectedAt=now;const firstDecode=!cameraFirstDecodeAt&&cameraStartedAt;const cameraToDecodeMs=firstDecode?Math.max(0,now-cameraStartedAt):null;const cameraSessionElapsedMs=cameraStartedAt?Math.max(0,now-cameraStartedAt):null;if(firstDecode)cameraFirstDecodeAt=now;if(code===lastCode&&now-lastAt<3000)return;lastCode=code;lastAt=now;
  if(!parentReady){setStatus('Belum terhubung dengan aplikasi utama. Tutup scanner lalu buka kembali dari tombol Scan Kamera.',true);return}
  if(source==='hid')setHidMonitor_('ready','Barcode HID berhasil dikenali');
@@ -575,7 +521,7 @@ function sendCode(raw,source='manual',decodeMeta){
   const requestId='scan_'+(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now()+'_'+Math.random().toString(36).slice(2));
   barcodePendingRequestId=requestId;barcodePendingState='processing';persistBarcodePending_();barcodeProbeStartedAt=Date.now();
   setStatus('Barcode '+code+' terbaca · mengirim ke Menu Kasir…');
-  const sent=post('APOTEK_SCANNER_RESULT',{barcode:code,requestId,source,detectedAt,cameraToDecodeMs,cameraSessionElapsedMs,decodeProcessingMs:decodeMeta&&Number.isFinite(decodeMeta.decodeProcessingMs)?decodeMeta.decodeProcessingMs:null,adaptiveTier:adaptiveCamera.tier,scanProfile:activeScanProfile});
+  const sent=post('APOTEK_SCANNER_RESULT',{barcode:code,requestId,source,detectedAt,cameraToDecodeMs,cameraSessionElapsedMs,decodeProcessingMs:decodeMeta&&Number.isFinite(decodeMeta.decodeProcessingMs)?decodeMeta.decodeProcessingMs:null});
   if(!sent){clearBarcodePending_();setStatus('Gagal mengirim barcode ke aplikasi utama. Tutup scanner dan buka kembali dari Menu Kasir.',true);return;}
   if(barcodePendingTimer)clearInterval(barcodePendingTimer);
   let waited=0,lastProbe=0;
@@ -626,14 +572,11 @@ async function applyCameraEnhancements_(){
  try{
   const caps=typeof qr.getRunningTrackCapabilities==='function'?qr.getRunningTrackCapabilities():null;
   const advanced=[];
-  if(caps&&Array.isArray(caps.focusMode)&&caps.focusMode.includes('continuous'))advanced.push({focusMode:'continuous'});
-  if(caps&&Array.isArray(caps.exposureMode)&&caps.exposureMode.includes('continuous'))advanced.push({exposureMode:'continuous'});
-  if(caps&&Array.isArray(caps.whiteBalanceMode)&&caps.whiteBalanceMode.includes('continuous'))advanced.push({whiteBalanceMode:'continuous'});
+  if(caps&&caps.focusMode&&Array.isArray(caps.focusMode)&&caps.focusMode.includes('continuous'))advanced.push({focusMode:'continuous'});
+  if(caps&&caps.exposureMode&&Array.isArray(caps.exposureMode)&&caps.exposureMode.includes('continuous'))advanced.push({exposureMode:'continuous'});
   if(advanced.length&&typeof qr.applyVideoConstraints==='function')await qr.applyVideoConstraints({advanced});
-  const setting=typeof qr.getRunningTrackSettings==='function'?qr.getRunningTrackSettings():{};
-  setScannerCapabilityInfo_('Kamera adaptif aktif · '+(setting.width||'?')+'×'+(setting.height||'?')+' · autofocus/exposure otomatis bila didukung.');
-  scannerRuntimeLog_('CAMERA_CAPABILITIES_APPLIED',{advanced:advanced.map(x=>Object.keys(x)[0]),width:setting.width||0,height:setting.height||0,frameRate:setting.frameRate||0});
- }catch(e){setScannerCapabilityInfo_('Kamera aktif. Kontrol fokus/exposure lanjutan tidak tersedia pada perangkat ini.');scannerRuntimeLog_('CAMERA_ENHANCEMENT_UNAVAILABLE',{message:String(e&&e.message||e||'')});}
+  setScannerCapabilityInfo_('Kamera aktif. Autofocus/exposure otomatis diterapkan jika didukung perangkat.');
+ }catch(e){setScannerCapabilityInfo_('Kamera aktif. Sebagian kontrol fokus/exposure tidak tersedia pada perangkat ini.');}
 }
 // Multi-Angle Barcode Detection & Perspective Correction Engine.
 // Native BarcodeDetector is an enhancement layer; html5-qrcode remains the compatibility fallback.
@@ -648,7 +591,7 @@ function selectFallbackEngine_(reason){
  setScannerCapabilityInfo_('Mode kompatibilitas: pemindaian kamera menggunakan JavaScript decoder. Multi-angle native tidak tersedia pada browser/perangkat ini.');
 }
 function getBarcodeEngineDiagnostics_(){
- return {mode:barcodeEngineSelection.mode,nativeAvailable:barcodeEngineSelection.nativeAvailable,nativeFormats:barcodeEngineSelection.nativeFormats.slice(),fallback:barcodeEngineSelection.fallback,nativeErrors:barcodeEngineSelection.nativeErrors,adaptive:{tier:adaptiveCamera.tier,effectiveFps:adaptiveCamera.effectiveFps,engineFps:Number(adaptiveCamera.engineFps.toFixed(2)),frameWidth:adaptiveCamera.frameWidth,decodeAvgMs:Math.round(adaptiveCamera.decodeAvgMs),thermalPressure:adaptiveCamera.thermalPressure}};
+ return {mode:barcodeEngineSelection.mode,nativeAvailable:barcodeEngineSelection.nativeAvailable,nativeFormats:barcodeEngineSelection.nativeFormats.slice(),fallback:barcodeEngineSelection.fallback,nativeErrors:barcodeEngineSelection.nativeErrors};
 }
 function solveLinearSystem_(a,b){
  const n=b.length;for(let i=0;i<n;i++){let pivot=i;for(let r=i+1;r<n;r++)if(Math.abs(a[r][i])>Math.abs(a[pivot][i]))pivot=r;if(Math.abs(a[pivot][i])<1e-9)return null;[a[i],a[pivot]]=[a[pivot],a[i]];[b[i],b[pivot]]=[b[pivot],b[i]];const d=a[i][i];for(let c=i;c<n;c++)a[i][c]/=d;b[i]/=d;for(let r=0;r<n;r++){if(r===i)continue;const f=a[r][i];for(let c=i;c<n;c++)a[r][c]-=f*a[i][c];b[r]-=f*b[i];}}return b;
@@ -674,43 +617,24 @@ function rotateCanvas_(source,deg){
  const c=document.createElement('canvas'),swap=deg===90||deg===270;c.width=swap?source.height:source.width;c.height=swap?source.width:source.height;const x=c.getContext('2d',{willReadFrequently:true});x.translate(c.width/2,c.height/2);x.rotate(deg*Math.PI/180);x.drawImage(source,-source.width/2,-source.height/2);return c;
 }
 async function runMultiAngleFrame_(){
- if(!angleEngine.active||angleEngine.busy)return;if(document.hidden){angleEngine.raf=requestAnimationFrame(runMultiAngleFrame_);return;}const video=angleEngine.video;if(!video||video.readyState<2||!video.videoWidth)return;
- // iOS compatibility path: restore the lower-cost D4.3 native detection cadence.
- // D5 adaptive escalation is retained for Android/desktop only.
- if(isIOSCameraBrowser_()){
-  const profile=SCAN_PROFILES[activeScanProfile]||SCAN_PROFILES.high,iosNow=performance.now();
-  if(iosNow-angleEngine.lastRun<1000/profile.engineFps){angleEngine.raf=requestAnimationFrame(runMultiAngleFrame_);return;}
-  angleEngine.lastRun=iosNow;angleEngine.busy=true;
-  try{
-   const base=angleEngine.canvas;base.width=Math.min(960,video.videoWidth);base.height=Math.max(1,Math.round(video.videoHeight*(base.width/video.videoWidth)));angleEngine.ctx.drawImage(video,0,0,base.width,base.height);
-   angleEngine.frameCount=(angleEngine.frameCount||0)+1;const rotations=angleEngine.frameCount%4===0?[0,180,90,270]:[0,180];
-   for(const deg of rotations){if(!angleEngine.active)break;const frame=deg?rotateCanvas_(base,deg):base;let found=[];const decodeStart=performance.now();try{found=await angleEngine.detector.detect(frame);angleEngine.errors=0;}catch(err){angleEngine.errors++;barcodeEngineSelection.nativeErrors++;scannerRuntimeLog_('IOS_NATIVE_DECODE_ERROR',{name:String(err&&err.name||''),message:String(err&&err.message||err||'')});if(angleEngine.errors>=3){selectFallbackEngine_('Native decoder iOS gagal berulang; beralih ke decoder HTML5.');return;}}
-    for(const item of found){if(item.rawValue){const code=norm(item.rawValue);if(code&&!(code===angleEngine.lastEngineCode&&Date.now()-angleEngine.lastEngineAt<850)){angleEngine.lastEngineCode=code;angleEngine.lastEngineAt=Date.now();sendCode(code,'camera-multi-angle',{decodeProcessingMs:performance.now()-decodeStart});return;}}
-     if(item.cornerPoints&&item.cornerPoints.length>=4&&!item.rawValue){const patch=rectifyBarcodeCandidate_(frame,item.cornerPoints);if(patch){let retry=[];try{retry=await angleEngine.detector.detect(patch);}catch(err){angleEngine.errors++;barcodeEngineSelection.nativeErrors++;scannerRuntimeLog_('IOS_PERSPECTIVE_RETRY_ERROR',{message:String(err&&err.message||err||'')});}for(const r of retry){if(r.rawValue){sendCode(r.rawValue,'camera-perspective-correction',{decodeProcessingMs:performance.now()-decodeStart});return;}}}}
-    }
-   }
-  }catch(err){scannerRuntimeLog_('IOS_COMPAT_DETECT_ERROR',{message:String(err&&err.message||err||'')});}
-  finally{angleEngine.busy=false;if(angleEngine.active)angleEngine.raf=requestAnimationFrame(runMultiAngleFrame_);}
-  return;
- }
- const now=performance.now();if(now-angleEngine.lastRun<1000/Math.max(1,adaptiveCamera.engineFps))return;angleEngine.lastRun=now;angleEngine.busy=true;
+ if(!angleEngine.active||angleEngine.busy)return;const video=angleEngine.video;if(!video||video.readyState<2||!video.videoWidth)return;
+ const profile=SCAN_PROFILES[activeScanProfile]||SCAN_PROFILES.high,now=performance.now();if(now-angleEngine.lastRun<1000/profile.engineFps)return;angleEngine.lastRun=now;angleEngine.busy=true;
  try{
-  const base=angleEngine.canvas;const targetWidth=Math.min(adaptiveCamera.frameWidth||800,video.videoWidth);base.width=targetWidth;base.height=Math.max(1,Math.round(video.videoHeight*(base.width/video.videoWidth)));angleEngine.ctx.drawImage(video,0,0,base.width,base.height);
-  // Adaptive search: frontal frames are cheapest; side rotations are escalated
-  // after consecutive misses and reduced again after a successful decode.
-  angleEngine.frameCount++;
-  const misses=adaptiveCamera.misses;
-  let rotations=misses>=6?[0,180,90,270]:(misses>=2?[0,180,90]:[0,180]);
-  if(adaptiveCamera.tier==='constrained'&&misses<5)rotations=[0];
-  for(const deg of rotations){if(!angleEngine.active)break;const frame=deg?rotateCanvas_(base,deg):base;let found=[],decodeStart=performance.now(),decodeProcessingMs=null;try{found=await angleEngine.detector.detect(frame);decodeProcessingMs=performance.now()-decodeStart;angleEngine.errors=0;updateAdaptiveDecodeBudget_(decodeProcessingMs,found.length>0);}catch(_e){angleEngine.errors++;barcodeEngineSelection.nativeErrors++;updateAdaptiveDecodeBudget_(performance.now()-decodeStart,false);if(angleEngine.errors>=3){selectFallbackEngine_('Native decoder mengalami kegagalan berulang.');return;}}
+  const base=angleEngine.canvas;base.width=Math.min(960,video.videoWidth);base.height=Math.round(video.videoHeight*(base.width/video.videoWidth));angleEngine.ctx.drawImage(video,0,0,base.width,base.height);
+  // Fast path: decode the unrotated frame first, then 180 degrees. Side rotations
+  // are sampled periodically so difficult angles remain supported without
+  // paying the four-rotation cost on every animation frame.
+  angleEngine.frameCount=(angleEngine.frameCount||0)+1;
+  const rotations=(angleEngine.frameCount%4===0)?[0,180,90,270]:[0,180];
+  for(const deg of rotations){if(!angleEngine.active)break;const frame=deg?rotateCanvas_(base,deg):base;let found=[],decodeStart=performance.now(),decodeProcessingMs=null;try{found=await angleEngine.detector.detect(frame);decodeProcessingMs=performance.now()-decodeStart;angleEngine.errors=0;}catch(_e){angleEngine.errors++;barcodeEngineSelection.nativeErrors++;if(angleEngine.errors>=3){selectFallbackEngine_('Native decoder mengalami kegagalan berulang.');return;}}
    for(const item of found){
+    // Most native results already contain rawValue. Return immediately; only
+    // run perspective rectification when geometry exists but direct decode did not.
     if(item.rawValue){const code=norm(item.rawValue);if(code&&!(code===angleEngine.lastEngineCode&&Date.now()-angleEngine.lastEngineAt<850)){angleEngine.lastEngineCode=code;angleEngine.lastEngineAt=Date.now();sendCode(code,'camera-multi-angle',{decodeProcessingMs});return;}}
-    if(item.cornerPoints&&item.cornerPoints.length>=4&&!item.rawValue&&adaptiveCamera.tier!=='constrained'){
-     const patch=rectifyBarcodeCandidate_(frame,item.cornerPoints);if(patch){let retry=[];try{const retryStart=performance.now();retry=await angleEngine.detector.detect(patch);updateAdaptiveDecodeBudget_(performance.now()-retryStart,retry.length>0);}catch(_e){angleEngine.errors++;barcodeEngineSelection.nativeErrors++;if(angleEngine.errors>=3){selectFallbackEngine_('Koreksi perspektif native gagal berulang.');return;}}for(const r of retry){if(r.rawValue){sendCode(r.rawValue,'camera-perspective-correction',{decodeProcessingMs});return;}}}
-    }
+    if(item.cornerPoints&&item.cornerPoints.length>=4&&!item.rawValue){const patch=rectifyBarcodeCandidate_(frame,item.cornerPoints);if(patch){let retry=[];try{retry=await angleEngine.detector.detect(patch)}catch(_e){angleEngine.errors++;barcodeEngineSelection.nativeErrors++;if(angleEngine.errors>=3){selectFallbackEngine_('Koreksi perspektif native gagal berulang.');return;}}for(const r of retry){if(r.rawValue){sendCode(r.rawValue,'camera-perspective-correction',{decodeProcessingMs:decodeProcessingMs});return;}}}}
    }
   }
- }catch(e){scannerRuntimeLog_('ADAPTIVE_DETECT_ERROR',{message:String(e&&e.message||e||'')});}
+ }catch(e){/* Keep the primary camera decoder running if enhancement fails. */}
  finally{angleEngine.busy=false;if(angleEngine.active)angleEngine.raf=requestAnimationFrame(runMultiAngleFrame_);}
 }
 async function startMultiAngleEngine_(){
@@ -733,13 +657,13 @@ async function startMultiAngleEngine_(){
   angleEngine.canvas=document.createElement('canvas');
   angleEngine.ctx=angleEngine.canvas.getContext('2d',{willReadFrequently:true});
   if(!angleEngine.ctx)throw new Error('Canvas tidak tersedia');
-  detectDeviceTier_();angleEngine.active=true;angleEngine.errors=0;angleEngine.lastRun=0;angleEngine.frameCount=0;adaptiveCamera.misses=0;adaptiveCamera.decodeAvgMs=0;adaptiveCamera.decodeSamples=0;adaptiveCamera.thermalPressure=0;
+  angleEngine.active=true;angleEngine.errors=0;angleEngine.lastRun=0;angleEngine.frameCount=0;
   barcodeEngineSelection.mode='native-enhanced-with-js-fallback';
   barcodeEngineSelection.nativeAvailable=true;
   barcodeEngineSelection.nativeFormats=formats;
   angleEngine.raf=requestAnimationFrame(runMultiAngleFrame_);
   setScannerCapabilityInfo_('Automatic Engine memilih Native BarcodeDetector untuk deteksi multi-sudut dan koreksi perspektif. HTML5 JavaScript Decoder tetap siaga sebagai fallback.');
-  updateBarcodeEngineStatus_('Native BarcodeDetector adaptif aktif · '+formats.join(', ')+' · tier '+adaptiveCamera.tier+' · HTML5 decoder siaga sebagai fallback.','success');
+  updateBarcodeEngineStatus_('Native BarcodeDetector aktif · '+formats.join(', ')+' · HTML5 decoder siaga sebagai fallback.','success');
  }catch(e){
   selectFallbackEngine_('Native decoder tidak kompatibel: '+String(e&&e.message||e));
  }
@@ -747,9 +671,9 @@ async function startMultiAngleEngine_(){
 function stopMultiAngleEngine_(){angleEngine.active=false;if(angleEngine.raf)cancelAnimationFrame(angleEngine.raf);angleEngine.raf=0;angleEngine.busy=false;angleEngine.video=null;angleEngine.detector=null;angleEngine.canvas=null;angleEngine.ctx=null;}
 
 function setScanSensitivity_(value){
- activeScanProfile=SCAN_PROFILES[value]?value:'high';detectDeviceTier_();
- setScannerCapabilityInfo_('Sensitivitas '+activeScanProfile.toUpperCase()+' · profil adaptif '+adaptiveCamera.tier+' · decoder menyesuaikan beban perangkat tanpa memulai ulang kamera.');
- if(qr&&qr.isScanning){const profile=getAdaptiveScanProfile_();try{if(typeof qr.applyVideoConstraints==='function')qr.applyVideoConstraints({frameRate:{ideal:profile.fps,max:Math.max(profile.fps,profile.fps+4)}}).catch(()=>{});}catch(e){}scannerRuntimeLog_('SCAN_PROFILE_CHANGED',{profile:activeScanProfile,tier:adaptiveCamera.tier,effectiveFps:adaptiveCamera.effectiveFps,engineFps:adaptiveCamera.engineFps});}
+ activeScanProfile=SCAN_PROFILES[value]?value:'high';
+ setScannerCapabilityInfo_('Sensitivitas '+activeScanProfile.toUpperCase()+' dipilih. Automatic Engine menyesuaikan kecepatan pemindaian; decoder native dan fallback dipilih sesuai dukungan perangkat.');
+ if(qr&&qr.isScanning){startCamera();}
 }
 const scannerControlRow=document.getElementById('scannerControlRow');
 const scannerControlHost=document.getElementById('scannerControlHost');
@@ -814,7 +738,7 @@ async function startCameraCore_(){
  const activeGeneration=++cameraStartGeneration;
  if(!window.isSecureContext){setCameraToggleUI_('off');setCameraActiveLabel_('Kamera tidak aktif');setStatus('Kamera memerlukan HTTPS. Pastikan halaman ini dibuka dari GitHub Pages.',true);return}
  if(!window.Html5Qrcode){setCameraToggleUI_('off');setCameraActiveLabel_('Kamera tidak aktif');setStatus('Library scanner gagal dimuat. Periksa koneksi internet, atau gunakan input manual.',true);return}
- detectDeviceTier_();const profile=getAdaptiveScanProfile_();
+ const profile=SCAN_PROFILES[activeScanProfile]||SCAN_PROFILES.high;
  const scanConfig={fps:profile.fps,qrbox:(w,h)=>({width:Math.floor(Math.min(w*profile.box,profile.max)),height:Math.floor(Math.min(h*.58,210))}),aspectRatio:1.777,disableFlip:false};
  const onDecoded=decoded=>sendCode(decoded);
  try{
@@ -1032,39 +956,10 @@ window.addEventListener('keydown',function(e){
   if(SCANNER_INPUT_ENGINE.buffer.length>SCANNER_INPUT_ENGINE.maxLength)SCANNER_INPUT_ENGINE.buffer=SCANNER_INPUT_ENGINE.buffer.slice(-SCANNER_INPUT_ENGINE.maxLength);
  }
 },true);
-let cashierDialogMirrorId_='',cashierDialogMirrorBusy_=false;
-function renderCashierDialogMirror_(dialog){
- const root=document.getElementById('cashierDialogMirror');if(!root)return;
- if(!dialog||!dialog.id||!['alert','confirm'].includes(dialog.mode)){root.hidden=true;cashierDialogMirrorId_='';return;}
- cashierDialogMirrorId_=String(dialog.id);cashierDialogMirrorBusy_=false;
- root.dataset.kind=String(dialog.kind||'info');
- const icon=document.getElementById('cashierDialogMirrorIcon');icon.textContent=dialog.kind==='error'?'×':dialog.kind==='warning'?'!':dialog.kind==='success'?'✓':'i';
- document.getElementById('cashierDialogMirrorTitle').textContent=String(dialog.title||'Pemberitahuan Menu Kasir');
- document.getElementById('cashierDialogMirrorMessage').textContent=String(dialog.message||'');
- const actions=document.getElementById('cashierDialogMirrorActions');actions.innerHTML='';
- if(dialog.mode==='confirm'){
-  const cancel=document.createElement('button');cancel.type='button';cancel.className='mirror-cancel';cancel.textContent=String(dialog.cancelText||'Batal');cancel.addEventListener('click',()=>sendCashierDialogAction_('cancel'));
-  actions.appendChild(cancel);
- }
- const confirm=document.createElement('button');confirm.type='button';confirm.className='mirror-confirm'+(dialog.confirmClass==='danger'?' danger':'');confirm.textContent=String(dialog.confirmText||'Mengerti');confirm.addEventListener('click',()=>sendCashierDialogAction_('confirm'));
- actions.appendChild(confirm);root.hidden=false;
-}
-function sendCashierDialogAction_(action){
- if(!cashierDialogMirrorId_||cashierDialogMirrorBusy_)return;
- cashierDialogMirrorBusy_=true;
- document.querySelectorAll('#cashierDialogMirror button').forEach(b=>b.disabled=true);
- if(!post('APOTEK_CASHIER_DIALOG_ACTION',{dialogId:cashierDialogMirrorId_,action})){
-  cashierDialogMirrorBusy_=false;document.querySelectorAll('#cashierDialogMirror button').forEach(b=>b.disabled=false);
-  setStatus('Tindakan dialog belum terkirim ke Menu Kasir. Periksa koneksi scanner.',true);
- }
-}
 window.addEventListener('message',async event=>{
  const expectedSource=embedded?window.parent:window.opener;
  if(!allowedParent||!expectedSource||event.origin!==parentOrigin||event.source!==expectedSource)return;
  const d=event.data;if(!d||typeof d!=='object'||d.nonce!==nonce)return;
- if(d.type==='APOTEK_CASHIER_DIALOG_SYNC'){renderCashierDialogMirror_(d.dialog);return;}
- if(d.type==='APOTEK_CASHIER_DIALOG_CLOSED'){if(!d.dialogId||String(d.dialogId)===cashierDialogMirrorId_){const root=document.getElementById('cashierDialogMirror');if(root)root.hidden=true;cashierDialogMirrorId_='';cashierDialogMirrorBusy_=false;}return;}
- if(d.type==='APOTEK_CASHIER_DIALOG_ACTION_ACK'){if(String(d.dialogId||'')===cashierDialogMirrorId_){if(d.ok){const root=document.getElementById('cashierDialogMirror');if(root)root.hidden=true;cashierDialogMirrorId_='';cashierDialogMirrorBusy_=false;}else{cashierDialogMirrorBusy_=false;document.querySelectorAll('#cashierDialogMirror button').forEach(b=>b.disabled=false);setStatus(d.message||'Tindakan dialog gagal diteruskan.',true);}}return;}
  if(d.type==='APOTEK_SCANNER_INIT'){
   parentReady=true;
   if(mode==='kasir'&&!barcodePendingRequestId&&restoreBarcodePending_()){
@@ -1253,7 +1148,7 @@ else{
  scannerInitRetryTimer=setInterval(()=>{if(!parentReady)requestInit();else{clearInterval(scannerInitRetryTimer);scannerInitRetryTimer=null;}},1200);
  setCameraActiveLabel_('Kamera nonaktif');setCameraToggleUI_('off');
  setStatus(isIOSCameraBrowser_()?'Safari/iOS terdeteksi. Tekan Aktifkan Kamera; bila izin sudah diberikan tetapi kamera tidak tampil, buka scanner di tab Safari tersendiri.':'Scanner siap. Tekan Aktifkan untuk menggunakan kamera; barcode manual dan USB/Bluetooth tetap tersedia.');
- detectDeviceTier_();scannerRuntimeLog_('SCANNER_READY',{embedded,ios:isIOSCameraBrowser_(),mediaDevices:!!navigator.mediaDevices,getUserMedia:!!navigator.mediaDevices?.getUserMedia,barcodeDetector:typeof BarcodeDetector==='function',adaptiveTier:adaptiveCamera.tier,hardwareConcurrency:adaptiveCamera.cores,deviceMemory:adaptiveCamera.memory,iosCompatibilityProfile:isIOSCameraBrowser_()});
+ scannerRuntimeLog_('SCANNER_READY',{embedded,ios:isIOSCameraBrowser_(),mediaDevices:!!navigator.mediaDevices,getUserMedia:!!navigator.mediaDevices?.getUserMedia,barcodeDetector:typeof BarcodeDetector==='function'});
 }
 })();
 </script>
