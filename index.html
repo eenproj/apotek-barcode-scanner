@@ -393,7 +393,13 @@ function clearBarcodePending_(){barcodePendingRequestId='';barcodeProbeStartedAt
 function probeBarcodePending_(){if(!barcodePendingRequestId||!parentReady)return;post('APOTEK_SCANNER_STATUS_PROBE',{requestId:barcodePendingRequestId});}
 const SCANNER_INPUT_ENGINE={buffer:'',lastAt:0,startAt:0,gapMs:120,maxLength:128};
 const SCAN_PROFILES={normal:{fps:10,box:.76,max:380,angleStep:2,engineFps:2},high:{fps:16,box:.84,max:460,angleStep:1,engineFps:4},ultra:{fps:20,box:.90,max:520,angleStep:1,engineFps:5}};
+// Desktop/webcam profile is intentionally separate: mobile/iOS retains the proven D4.3 cadence.
+const DESKTOP_WEBCAM_PROFILE={fps:24,box:.90,max:560,engineFps:10,canvasWidth:960};
 let activeScanProfile='high';
+function getActiveScanProfile_(){
+ if(!isMobileScannerDevice())return {...(SCAN_PROFILES[activeScanProfile]||SCAN_PROFILES.high),...DESKTOP_WEBCAM_PROFILE};
+ return SCAN_PROFILES[activeScanProfile]||SCAN_PROFILES.high;
+}
 let angleEngine={detector:null,raf:0,lastRun:0,busy:false,video:null,canvas:null,ctx:null,active:false,rotationIndex:0,lastEngineCode:'',lastEngineAt:0,errors:0};
 const barcodeEngineSelection={mode:'initializing',nativeAvailable:false,nativeFormats:[],fallback:'html5-qrcode',nativeErrors:0};
 if(mode==='product'){
@@ -636,14 +642,14 @@ function rotateCanvas_(source,deg){
 }
 async function runMultiAngleFrame_(){
  if(!angleEngine.active||angleEngine.busy)return;const video=angleEngine.video;if(!video||video.readyState<2||!video.videoWidth)return;
- const profile=SCAN_PROFILES[activeScanProfile]||SCAN_PROFILES.high,now=performance.now();if(now-angleEngine.lastRun<1000/profile.engineFps)return;angleEngine.lastRun=now;angleEngine.busy=true;
+ const profile=getActiveScanProfile_(),now=performance.now();if(now-angleEngine.lastRun<1000/profile.engineFps)return;angleEngine.lastRun=now;angleEngine.busy=true;
  try{
-  const base=angleEngine.canvas;base.width=Math.min(960,video.videoWidth);base.height=Math.round(video.videoHeight*(base.width/video.videoWidth));angleEngine.ctx.drawImage(video,0,0,base.width,base.height);
-  // Fast path: decode the unrotated frame first, then 180 degrees. Side rotations
-  // are sampled periodically so difficult angles remain supported without
-  // paying the four-rotation cost on every animation frame.
+  const base=angleEngine.canvas,desktop=!isMobileScannerDevice();base.width=Math.min(desktop?DESKTOP_WEBCAM_PROFILE.canvasWidth:960,video.videoWidth);base.height=Math.round(video.videoHeight*(base.width/video.videoWidth));angleEngine.ctx.drawImage(video,0,0,base.width,base.height);
+  // Prioritize the native orientation for desktop webcams. Check 180 degrees
+  // periodically and side rotations less often to reduce per-frame CPU work.
+  // Mobile retains the original D4.3 multi-angle cadence.
   angleEngine.frameCount=(angleEngine.frameCount||0)+1;
-  const rotations=(angleEngine.frameCount%4===0)?[0,180,90,270]:[0,180];
+  const rotations=desktop?((angleEngine.frameCount%8===0)?[0,180,90,270]:((angleEngine.frameCount%3===0)?[0,180]:[0])):((angleEngine.frameCount%4===0)?[0,180,90,270]:[0,180]);
   for(const deg of rotations){if(!angleEngine.active)break;const frame=deg?rotateCanvas_(base,deg):base;let found=[],decodeStart=performance.now(),decodeProcessingMs=null;try{found=await angleEngine.detector.detect(frame);decodeProcessingMs=performance.now()-decodeStart;angleEngine.errors=0;}catch(_e){angleEngine.errors++;barcodeEngineSelection.nativeErrors++;if(angleEngine.errors>=3){selectFallbackEngine_('Native decoder mengalami kegagalan berulang.');return;}}
    for(const item of found){
     // Most native results already contain rawValue. Return immediately; only
@@ -756,8 +762,8 @@ async function startCameraCore_(){
  const activeGeneration=++cameraStartGeneration;
  if(!window.isSecureContext){setCameraToggleUI_('off');setCameraActiveLabel_('Kamera tidak aktif');setStatus('Kamera memerlukan HTTPS. Pastikan halaman ini dibuka dari GitHub Pages.',true);return}
  if(!window.Html5Qrcode){setCameraToggleUI_('off');setCameraActiveLabel_('Kamera tidak aktif');setStatus('Library scanner gagal dimuat. Periksa koneksi internet, atau gunakan input manual.',true);return}
- const profile=SCAN_PROFILES[activeScanProfile]||SCAN_PROFILES.high;
- const scanConfig={fps:profile.fps,qrbox:(w,h)=>({width:Math.floor(Math.min(w*profile.box,profile.max)),height:Math.floor(Math.min(h*.58,210))}),aspectRatio:1.777,disableFlip:false};
+ const profile=getActiveScanProfile_();
+ const scanConfig={fps:profile.fps,qrbox:(w,h)=>({width:Math.floor(Math.min(w*profile.box,profile.max)),height:Math.floor(Math.min(h*(isMobileScannerDevice() ? .58 : .68),isMobileScannerDevice() ? 210 : 280))}),aspectRatio:1.777,disableFlip:false};
  const onDecoded=decoded=>sendCode(decoded);
  try{
   setCameraActiveLabel_(isMobileScannerDevice()?(cameraFacingMode==='user'?'Mengaktifkan Kamera Depan…':'Mengaktifkan Kamera Belakang…'):'Mengaktifkan Kamera…');
